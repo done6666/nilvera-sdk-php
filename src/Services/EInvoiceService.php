@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\SendByEmailRequest;
+use Nilvera\Requests\SendBySmsRequest;
+use Nilvera\Requests\SendInvoiceRequest;
+
 /**
  * E-Invoice (e-Fatura) API — base path: /einvoice
  *
@@ -20,33 +25,29 @@ class EInvoiceService extends AbstractService
     /**
      * POST /einvoice/Send/Model
      *
-     * @param array<string, mixed> $invoice
      * @return array{UUID: string, InvoiceNumber: ?string}
      */
-    public function send(array $invoice): array
+    public function send(SendInvoiceRequest $invoice): array
     {
-        return $this->post('/einvoice/Send/Model', $invoice)->json();
+        return $this->post('/einvoice/Send/Model', $invoice->toArray())->json();
     }
 
     /**
      * POST /einvoice/Send/Model/Preview
      *
-     * @param array<string, mixed> $invoice
      * @return array<string, mixed>
      */
-    public function preview(array $invoice): array
+    public function preview(SendInvoiceRequest $invoice): array
     {
-        return $this->post('/einvoice/Send/Model/Preview', $invoice)->json();
+        return $this->post('/einvoice/Send/Model/Preview', $invoice->toArray())->json();
     }
 
     /**
      * POST /einvoice/Send/Model/Download/Pdf — returns PDF binary.
-     *
-     * @param array<string, mixed> $invoice
      */
-    public function downloadPdf(array $invoice): string
+    public function downloadPdf(SendInvoiceRequest $invoice): string
     {
-        return $this->post('/einvoice/Send/Model/Download/Pdf', $invoice)->getBody();
+        return $this->post('/einvoice/Send/Model/Download/Pdf', $invoice->toArray())->getBody();
     }
 
     /**
@@ -87,12 +88,11 @@ class EInvoiceService extends AbstractService
     /**
      * GET /einvoice/Sale
      *
-     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listSaleInvoices(array $query = []): array
+    public function listSaleInvoices(ListInvoicesRequest $query = new ListInvoicesRequest()): array
     {
-        return $this->get('/einvoice/Sale', $query)->json();
+        return $this->get('/einvoice/Sale', $query->toArray())->json();
     }
 
     /**
@@ -199,41 +199,26 @@ class EInvoiceService extends AbstractService
 
     /**
      * POST /einvoice/Sale/Email/Send
-     *
-     * @param string[] $emailAddresses
      */
-    public function sendSaleInvoiceByEmail(string $uuid, array $emailAddresses): void
+    public function sendSaleInvoiceByEmail(SendByEmailRequest $request): void
     {
-        $this->post('/einvoice/Sale/Email/Send', [
-            'UUID'           => $uuid,
-            'emailAddresses' => $emailAddresses,
-        ]);
+        $this->post('/einvoice/Sale/Email/Send', $request->toArray());
     }
 
     /**
      * POST /einvoice/Sale/Sms/Send
-     *
-     * @param string[] $phoneNumbers
      */
-    public function sendSaleInvoiceBySms(string $uuid, array $phoneNumbers): void
+    public function sendSaleInvoiceBySms(SendBySmsRequest $request): void
     {
-        $this->post('/einvoice/Sale/Sms/Send', [
-            'UUID'         => $uuid,
-            'phoneNumbers' => $phoneNumbers,
-        ]);
+        $this->post('/einvoice/Sale/Sms/Send', $request->toArray());
     }
 
     /**
      * POST /einvoice/Sale/Whatsapp/Send
-     *
-     * @param string[] $phoneNumbers
      */
-    public function sendSaleInvoiceByWhatsapp(string $uuid, array $phoneNumbers): void
+    public function sendSaleInvoiceByWhatsapp(SendBySmsRequest $request): void
     {
-        $this->post('/einvoice/Sale/Whatsapp/Send', [
-            'UUID'         => $uuid,
-            'phoneNumbers' => $phoneNumbers,
-        ]);
+        $this->post('/einvoice/Sale/Whatsapp/Send', $request->toArray());
     }
 
     // -------------------------------------------------------------------------
@@ -243,12 +228,11 @@ class EInvoiceService extends AbstractService
     /**
      * GET /einvoice/Purchase
      *
-     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listPurchaseInvoices(array $query = []): array
+    public function listPurchaseInvoices(ListInvoicesRequest $query = new ListInvoicesRequest()): array
     {
-        return $this->get('/einvoice/Purchase', $query)->json();
+        return $this->get('/einvoice/Purchase', $query->toArray())->json();
     }
 
     /**
@@ -335,28 +319,18 @@ class EInvoiceService extends AbstractService
 
     /**
      * POST /einvoice/Purchase/Email/Send
-     *
-     * @param string[] $emailAddresses
      */
-    public function sendPurchaseInvoiceByEmail(string $uuid, array $emailAddresses): void
+    public function sendPurchaseInvoiceByEmail(SendByEmailRequest $request): void
     {
-        $this->post('/einvoice/Purchase/Email/Send', [
-            'UUID'           => $uuid,
-            'emailAddresses' => $emailAddresses,
-        ]);
+        $this->post('/einvoice/Purchase/Email/Send', $request->toArray());
     }
 
     /**
      * POST /einvoice/Purchase/Sms/Send
-     *
-     * @param string[] $phoneNumbers
      */
-    public function sendPurchaseInvoiceBySms(string $uuid, array $phoneNumbers): void
+    public function sendPurchaseInvoiceBySms(SendBySmsRequest $request): void
     {
-        $this->post('/einvoice/Purchase/Sms/Send', [
-            'UUID'         => $uuid,
-            'phoneNumbers' => $phoneNumbers,
-        ]);
+        $this->post('/einvoice/Purchase/Sms/Send', $request->toArray());
     }
 
     /**

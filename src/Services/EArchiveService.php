@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\SendArchiveInvoiceRequest;
+use Nilvera\Requests\SendByEmailRequest;
+use Nilvera\Requests\SendBySmsRequest;
+
 /**
  * E-Archive Invoice (e-Arşiv) API — base path: /earchive
  *
@@ -20,12 +25,11 @@ class EArchiveService extends AbstractService
     /**
      * POST /earchive/Send/Model
      *
-     * @param array<string, mixed> $invoice
      * @return array<string, mixed>
      */
-    public function send(array $invoice): array
+    public function send(SendArchiveInvoiceRequest $invoice): array
     {
-        return $this->post('/earchive/Send/Model', $invoice)->json();
+        return $this->post('/earchive/Send/Model', $invoice->toArray())->json();
     }
 
     /**
@@ -67,12 +71,11 @@ class EArchiveService extends AbstractService
     /**
      * GET /earchive/Invoices
      *
-     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listInvoices(array $query = []): array
+    public function listInvoices(ListInvoicesRequest $query = new ListInvoicesRequest()): array
     {
-        return $this->get('/earchive/Invoices', $query)->json();
+        return $this->get('/earchive/Invoices', $query->toArray())->json();
     }
 
     /**
@@ -160,28 +163,18 @@ class EArchiveService extends AbstractService
 
     /**
      * POST /earchive/Invoices/Email/Send
-     *
-     * @param string[] $emailAddresses
      */
-    public function sendInvoiceByEmail(string $uuid, array $emailAddresses): void
+    public function sendInvoiceByEmail(SendByEmailRequest $request): void
     {
-        $this->post('/earchive/Invoices/Email/Send', [
-            'UUID'           => $uuid,
-            'emailAddresses' => $emailAddresses,
-        ]);
+        $this->post('/earchive/Invoices/Email/Send', $request->toArray());
     }
 
     /**
      * POST /earchive/Invoices/Sms/Send
-     *
-     * @param string[] $phoneNumbers
      */
-    public function sendInvoiceBySms(string $uuid, array $phoneNumbers): void
+    public function sendInvoiceBySms(SendBySmsRequest $request): void
     {
-        $this->post('/earchive/Invoices/Sms/Send', [
-            'UUID'         => $uuid,
-            'phoneNumbers' => $phoneNumbers,
-        ]);
+        $this->post('/earchive/Invoices/Sms/Send', $request->toArray());
     }
 
     /**
