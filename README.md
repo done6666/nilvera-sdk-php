@@ -32,9 +32,9 @@ $client = NilveraClient::test('your-test-api-key');
 
 | Method | Service | API |
 |---|---|---|
-| `$client->general()` | General | Company queries, customers, products |
-| `$client->eInvoice()` | E-Fatura | Outgoing/incoming e-invoices, drafts |
-| `$client->eArchive()` | E-Arşiv | E-archive invoices, reports, series |
+| `$client->general()` | General | Company, taxpayer, customer, stock |
+| `$client->eInvoice()` | E-Fatura | Outgoing/incoming e-invoices, drafts, series, templates |
+| `$client->eArchive()` | E-Arşiv | E-archive invoices, reports, series, templates |
 | `$client->eWaybill()` | E-İrsaliye | E-waybills, acceptance/rejection |
 | `$client->eSelfEmployed()` | E-SMM | Self-employed professional receipts |
 | `$client->eProducerReceipt()` | E-MM | Producer receipts |
@@ -49,86 +49,138 @@ $client = NilveraClient::test('your-test-api-key');
 ### Send an e-Invoice
 
 ```php
-$result = $client->eInvoice()->send([
-    'EInvoice' => [
-        'InvoiceInfo' => [
-            'InvoiceType'    => 'SATIS',
-            'InvoiceProfile' => 'TEMELFATURA',
-            'InvoiceDate'    => '2024-01-15',
-            'CurrencyCode'   => 'TRY',
-        ],
-        'CompanyInfo' => [
-            'TaxNumber' => '1234567890',
-            'Name'      => 'My Company Ltd.',
-        ],
-        'CustomerInfo' => [
-            'TaxNumber' => '9876543210',
-            'Name'      => 'Customer Co.',
-        ],
-        'InvoiceLines' => [
-            [
-                'Name'        => 'Product A',
-                'Quantity'    => 2,
-                'UnitCode'    => 'C62',
-                'UnitPrice'   => 100.00,
-                'VATRate'     => 20,
-                'VATAmount'   => 40.00,
-                'TotalAmount' => 240.00,
-            ],
-        ],
-        'Notes' => [],
-    ],
-]);
+use Nilvera\Enums\InvoiceProfile;
+use Nilvera\Enums\InvoiceType;
+use Nilvera\Enums\UnitType;
+use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
+use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
-echo $result['UUID'];          // Invoice UUID
-echo $result['InvoiceNumber']; // e.g. "GIB2024000000001"
+$request = new SendInvoiceRequest(
+    customerInfo: new ReceiverRequest(
+        taxNumber: '1234567890',
+        name:      'Customer Co.',
+        address:   'Atatürk Cad. No:1',
+        district:  'Kadıköy',
+        city:      'İstanbul',
+        taxOffice: 'Kadıköy',
+    ),
+    invoiceLines: [
+        InvoiceLineRequest::make(
+            name:       'Product A',
+            quantity:   2,
+            unitType:   UnitType::Piece,
+            price:      100.00,
+            kdvPercent: 20,
+        ),
+    ],
+    issueDate:      new DateTimeImmutable('2024-01-15T10:00:00'),
+    invoiceProfile: InvoiceProfile::Basic,
+    invoiceType:    InvoiceType::Sales,
+    // customerAlias: 'urn:mail:muhasebe@customer.com', // for registered e-invoice recipients
+);
+
+$response = $client->eInvoice()->send($request);
+
+echo $response->uuid;          // Invoice UUID
+echo $response->invoiceNumber; // e.g. "GIB2024000000001"
+```
+
+### InvoiceLineRequest — factory method
+
+`InvoiceLineRequest::make()` automatically calculates `KDVTotal` from price, quantity and KDV rate. Use `$allowancePercent` for percentage-based discounts:
+
+```php
+// With discount percentage
+$line = InvoiceLineRequest::make(
+    name:             'Product B',
+    quantity:         10,
+    unitType:         UnitType::Piece,
+    price:            500.00,
+    kdvPercent:       10,
+    allowancePercent: 5,   // 5% discount, AllowanceTotal calculated automatically
+);
+
+// With fixed discount amount
+$line = InvoiceLineRequest::make(
+    name:          'Product C',
+    quantity:      1,
+    unitType:      UnitType::Piece,
+    price:         1000.00,
+    kdvPercent:    20,
+    allowanceTotal: 50.00,
+);
 ```
 
 ### List Outgoing Invoices
 
 ```php
-$invoices = $client->eInvoice()->listSaleInvoices([
-    'page'      => 1,
-    'pageSize'  => 20,
-    'startDate' => '2024-01-01',
-    'endDate'   => '2024-12-31',
-]);
+use Nilvera\Requests\ListInvoicesRequest;
+
+$params = new ListInvoicesRequest(
+    startDate: new DateTimeImmutable('2024-01-01'),
+    endDate:   new DateTimeImmutable('2024-12-31'),
+    page:      1,
+    pageSize:  20,
+);
+
+$invoices = $client->eInvoice()->listSaleInvoices($params);
 ```
 
 ### Get Invoice HTML / PDF / XML
 
 ```php
 $html = $client->eInvoice()->getSaleInvoiceHtml($uuid);
-$pdf  = $client->eInvoice()->getSaleInvoicePdf($uuid);   // binary
+$pdf  = $client->eInvoice()->getSaleInvoicePdf($uuid);  // binary
 $xml  = $client->eInvoice()->getSaleInvoiceXml($uuid);
 ```
 
-### Send Invoice via Email
+### Send Invoice via Email / SMS / WhatsApp
 
 ```php
-$client->eInvoice()->sendSaleInvoiceByEmail($uuid, [
-    'customer@example.com',
-    'accounts@example.com',
-]);
+use Nilvera\Requests\SendByEmailRequest;
+use Nilvera\Requests\SendBySmsRequest;
+
+// Email
+$client->eInvoice()->sendSaleInvoiceByEmail(
+    new SendByEmailRequest($uuid, ['customer@example.com', 'accounts@example.com'])
+);
+
+// SMS
+$client->eInvoice()->sendSaleInvoiceBySms(
+    new SendBySmsRequest($uuid, ['+905001234567'])
+);
+
+// WhatsApp
+$client->eInvoice()->sendSaleInvoiceByWhatsapp(
+    new SendBySmsRequest($uuid, ['+905001234567'])
+);
 ```
 
-### E-Archive Invoice
+### Send e-Invoice via XML or Base64
 
 ```php
-// Create draft
-$draft = $client->eArchive()->createDraft([...]);
+// Send raw UBL XML
+$result = $client->eInvoice()->sendXml($xmlContent);
 
-// Send draft
-$result = $client->eArchive()->sendDraft($draft['UUID']);
+// Send base64-encoded XML
+$result = $client->eInvoice()->sendBase64(base64_encode($xmlContent));
 
-// Cancel issued invoice
-$client->eArchive()->cancelInvoice($uuid);
+echo $result['UUID'];
+echo $result['InvoiceNumber'];
 ```
 
-### Check Taxpayer
+### Draft Invoices
 
 ```php
-$info = $client->general()->checkTaxpayer('1234567890');
+// Create a draft
+$draft = $client->eInvoice()->createDraft([...]);
+
+// Send an existing draft
+$response = $client->eInvoice()->sendDraft($uuid);
+
+// Delete a draft
+$client->eInvoice()->deleteDraft($uuid);
 ```
 
 ### Create Return Invoice from Incoming Invoice
@@ -138,17 +190,73 @@ $return = $client->eInvoice()->createReturnFromPurchaseInvoice($uuid);
 echo $return['UUID'];
 ```
 
+### E-Archive Invoice
+
+```php
+use Nilvera\Requests\SendArchiveInvoiceRequest;
+
+$request = new SendArchiveInvoiceRequest(
+    customerInfo:  new ReceiverRequest(
+        taxNumber: '9876543210',
+        name:      'Bireysel Müşteri',
+        address:   'Bağcılar Cad. No:5',
+        district:  'Bağcılar',
+        city:      'İstanbul',
+    ),
+    invoiceLines: [
+        InvoiceLineRequest::make('Hizmet', 1, UnitType::Piece, 500.00, 20),
+    ],
+    issueDate: new DateTimeImmutable('2024-06-01T09:00:00'),
+);
+
+$response = $client->eArchive()->send($request);
+
+// Cancel an issued e-archive invoice
+$client->eArchive()->cancelInvoice($uuid);
+
+// Submit e-archive report to GIB
+$client->eArchive()->sendReport();
+```
+
+### Check Taxpayer
+
+```php
+// Check by tax number
+$info = $client->general()->checkTaxpayer('1234567890');
+
+// Search by company name
+$results = $client->general()->searchTaxpayers('Acme');
+
+// Check by alias type (e-invoice vs e-despatch)
+$list = $client->general()->listTaxpayersByType('GB', 'Invoice');
+```
+
+### Customer & Stock Management
+
+```php
+// Customers
+$customers = $client->general()->listCustomers();
+$client->general()->createCustomer([...]);
+$client->general()->updateCustomer([...]);
+$client->general()->deleteCustomer($id);
+
+// Stocks
+$stocks = $client->general()->listStocks();
+$client->general()->createStock([...]);
+$client->general()->deleteStock($id);
+```
+
 ## Error Handling
 
 ```php
 use Nilvera\Exception\ApiException;
 use Nilvera\Exception\AuthenticationException;
+use Nilvera\Exception\ConflictException;
 use Nilvera\Exception\NotFoundException;
 use Nilvera\Exception\ValidationException;
-use Nilvera\Exception\ConflictException;
 
 try {
-    $result = $client->eInvoice()->send([...]);
+    $response = $client->eInvoice()->send($request);
 } catch (ValidationException $e) {
     // HTTP 422 — business rule or field validation failure
     $errors = $e->getErrors(); // ['FieldName' => ['error message']]
@@ -165,16 +273,33 @@ try {
 }
 ```
 
+## Request Classes
+
+| Class | Used for |
+|---|---|
+| `SendInvoiceRequest` | POST /einvoice/Send/Model |
+| `SendArchiveInvoiceRequest` | POST /earchive/Send/Model |
+| `ListInvoicesRequest` | GET listing endpoints (e-invoice, e-archive, etc.) |
+| `SendByEmailRequest` | Email delivery endpoints |
+| `SendBySmsRequest` | SMS / WhatsApp delivery endpoints |
+| `ReceiverRequest` | Customer info in invoice requests |
+| `InvoiceLineRequest` | Invoice line items (use `::make()` for auto KDV calc) |
+
 ## Enums
 
 ```php
-use Nilvera\Enums\Environment;
-use Nilvera\Enums\InvoiceType;
 use Nilvera\Enums\InvoiceProfile;
+use Nilvera\Enums\InvoiceType;
 use Nilvera\Enums\UnitType;
 
-InvoiceType::Sales->value;         // 'SATIS'
+InvoiceProfile::Basic->value;      // 'TEMELFATURA'
 InvoiceProfile::Commercial->value; // 'TICARIFATURA'
+InvoiceProfile::Export->value;     // 'IHRACAT'
+InvoiceProfile::EArchive->value;   // 'EARSIVFATURA'
+
+InvoiceType::Sales->value;         // 'SATIS'
+InvoiceType::Return->value;        // 'IADE'
+
 UnitType::Piece->value;            // 'C62'
 ```
 
