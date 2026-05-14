@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\CreateCustomerRequest;
+
 /**
  * General API: company, taxpayer, customer, stock, GIB account, credits.
  * Base path: /general
@@ -236,12 +238,11 @@ class GeneralService extends AbstractService
     /**
      * POST /general/Customers
      *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function createCustomer(array $data): array
+    public function createCustomer(CreateCustomerRequest $customer): array
     {
-        return $this->post('/general/Customers', $data)->json();
+        return $this->post('/general/Customers', $customer->toArray())->json();
     }
 
     /**

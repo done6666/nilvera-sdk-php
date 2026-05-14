@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\SendProducerReceiptRequest;
+use Nilvera\Responses\SendDocumentResponse;
+
 /**
  * E-MM (Müstahsil Makbuzu — Producer Receipt) API.
  * Base path: /eproducer
@@ -19,13 +22,12 @@ class EProducerReceiptService extends AbstractService
 
     /**
      * POST /eproducer/Send/Model
-     *
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
      */
-    public function send(array $data): array
+    public function send(SendProducerReceiptRequest $receipt): SendDocumentResponse
     {
-        return $this->post('/eproducer/Send/Model', $data)->json();
+        return SendDocumentResponse::fromArray(
+            $this->post('/eproducer/Send/Model', $receipt->toArray())->json()
+        );
     }
 
     /**

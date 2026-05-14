@@ -8,7 +8,7 @@ use Nilvera\Requests\ValueObjects\ProducerLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
 /**
- * e-MM (Mustahsil Makbuzu) gonderme istegi — POST /eproducerreceipt/Send/Model
+ * e-MM (Mustahsil Makbuzu) gonderme istegi — POST /eproducer/Send/Model
  */
 readonly class SendProducerReceiptRequest extends AbstractRequest
 {

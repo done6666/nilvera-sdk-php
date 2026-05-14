@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\SendVoucherRequest;
+use Nilvera\Responses\SendDocumentResponse;
+
 /**
  * E-SMM (Serbest Meslek Makbuzu — Self-Employed Professional Receipt) API.
  * Base path: /evoucher
@@ -16,6 +19,16 @@ class ESelfEmployedService extends AbstractService
     // -------------------------------------------------------------------------
     // Sending
     // -------------------------------------------------------------------------
+
+    /**
+     * POST /evoucher/Send/Model
+     */
+    public function send(SendVoucherRequest $voucher): SendDocumentResponse
+    {
+        return SendDocumentResponse::fromArray(
+            $this->post('/evoucher/Send/Model', $voucher->toArray())->json()
+        );
+    }
 
     /**
      * POST /evoucher/Send/Xml

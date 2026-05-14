@@ -8,7 +8,7 @@ use Nilvera\Requests\ValueObjects\ReceiverRequest;
 use Nilvera\Requests\ValueObjects\VoucherLineRequest;
 
 /**
- * e-SMM (Serbest Meslek Makbuzu) gonderme istegi — POST /esmm/Send/Model
+ * e-SMM (Serbest Meslek Makbuzu) gonderme istegi — POST /evoucher/Send/Model
  *
  * SendType: KAGIT | ELEKTRONIK
  */
