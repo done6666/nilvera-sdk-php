@@ -5,126 +5,177 @@ declare(strict_types=1);
 namespace Nilvera\Services;
 
 /**
- * E-SKGB (Sigorta Komisyon Gider Belgesi / Insurance Commission Expense Document) API.
- * Base path: /eskgb
+ * E-SKGB (Sigorta Komisyon Gider Belgesi — Insurance Commission Expense Document) API.
+ *
+ * NOTE: This service lives under the /einvoice namespace.
+ * Insurance documents are accessed via /einvoice/Insurances/ paths,
+ * and their drafts share /einvoice/Draft/ with e-invoice drafts.
+ *
+ * Base path for documents : /einvoice/Insurances
+ * Base path for drafts    : /einvoice/Draft
  */
 class EInsuranceService extends AbstractService
 {
+    // -------------------------------------------------------------------------
+    // Insurance Commission Expense Documents
+    // -------------------------------------------------------------------------
+
     /**
-     * List outgoing insurance commission expense documents.
-     *
-     * GET /eskgb/Sale
+     * GET /einvoice/Insurances
      *
      * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listSaleDocuments(array $query = []): array
+    public function listInsurances(array $query = []): array
     {
-        return $this->get('/eskgb/Sale', $query)->json();
+        return $this->get('/einvoice/Insurances', $query)->json();
     }
 
     /**
-     * Get a single document by UUID.
-     *
-     * GET /eskgb/Sale/{uuid}
+     * GET /einvoice/Insurances/{uuid}/Details
      *
      * @return array<string, mixed>
      */
-    public function getSaleDocument(string $uuid): array
+    public function getInsuranceDetails(string $uuid): array
     {
-        return $this->get("/eskgb/Sale/{$uuid}")->json();
+        return $this->get("/einvoice/Insurances/{$uuid}/Details")->json();
     }
 
     /**
-     * Get HTML of a document.
-     *
-     * GET /eskgb/Sale/{uuid}/Html
+     * GET /einvoice/Insurances/{uuid}/pdf
      */
-    public function getSaleDocumentHtml(string $uuid): string
+    public function getInsurancePdf(string $uuid): string
     {
-        return $this->get("/eskgb/Sale/{$uuid}/Html")->getBody();
+        return $this->get("/einvoice/Insurances/{$uuid}/pdf")->getBody();
     }
 
     /**
-     * Get PDF of a document.
+     * GET /einvoice/Insurances/{uuid}/Status
      *
-     * GET /eskgb/Sale/{uuid}/Pdf
+     * @return array<string, mixed>
      */
-    public function getSaleDocumentPdf(string $uuid): string
+    public function getInsuranceStatus(string $uuid): array
     {
-        return $this->get("/eskgb/Sale/{$uuid}/Pdf")->getBody();
+        return $this->get("/einvoice/Insurances/{$uuid}/Status")->json();
     }
 
     /**
-     * Send a document via email.
+     * GET /einvoice/Insurances/{uuid}/Tags
      *
-     * POST /eskgb/Sale/{uuid}/Email
+     * @return array<string, mixed>
+     */
+    public function getInsuranceTags(string $uuid): array
+    {
+        return $this->get("/einvoice/Insurances/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * PUT /einvoice/Insurances/{uuid}/Cancel
+     */
+    public function cancelInsurance(string $uuid): void
+    {
+        $this->put("/einvoice/Insurances/{$uuid}/Cancel");
+    }
+
+    /**
+     * PUT /einvoice/Insurances/Tags
+     *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToInsurances(array $data): void
+    {
+        $this->put('/einvoice/Insurances/Tags', $data);
+    }
+
+    /**
+     * POST /einvoice/Insurances/Email/Send
      *
      * @param string[] $emailAddresses
      */
-    public function sendSaleDocumentByEmail(string $uuid, array $emailAddresses): void
+    public function sendByEmail(string $uuid, array $emailAddresses): void
     {
-        $this->post("/eskgb/Sale/{$uuid}/Email", ['emailAddresses' => $emailAddresses]);
+        $this->post('/einvoice/Insurances/Email/Send', [
+            'UUID'           => $uuid,
+            'emailAddresses' => $emailAddresses,
+        ]);
     }
 
     /**
-     * Send a document using a structured model.
+     * POST /einvoice/Insurances/Whatsapp/Send
      *
-     * POST /eskgb/Send/Model
+     * @param string[] $phoneNumbers
+     */
+    public function sendByWhatsapp(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/einvoice/Insurances/Whatsapp/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * POST /einvoice/Insurances/{uuid}/CreateDraft
      *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function send(array $data): array
+    public function createDraftFromInsurance(string $uuid): array
     {
-        return $this->post('/eskgb/Send/Model', $data)->json();
+        return $this->post("/einvoice/Insurances/{$uuid}/CreateDraft")->json();
     }
 
+    // -------------------------------------------------------------------------
+    // Draft Documents (shared /einvoice/Draft namespace)
+    // -------------------------------------------------------------------------
+
     /**
-     * List draft documents.
-     *
-     * GET /eskgb/Draft
+     * GET /einvoice/Draft
      *
      * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
     public function listDrafts(array $query = []): array
     {
-        return $this->get('/eskgb/Draft', $query)->json();
+        return $this->get('/einvoice/Draft', $query)->json();
     }
 
     /**
-     * Create a draft document.
-     *
-     * POST /eskgb/Draft
+     * POST /einvoice/Draft/Create
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
     public function createDraft(array $data): array
     {
-        return $this->post('/eskgb/Draft', $data)->json();
+        return $this->post('/einvoice/Draft/Create', $data)->json();
     }
 
     /**
-     * Delete a draft document.
+     * POST /einvoice/Draft/CreateBulk
      *
-     * DELETE /eskgb/Draft/{uuid}
+     * @param array<string, mixed> $data
+     * @return array<string[]>
+     */
+    public function createDraftsBulk(array $data): array
+    {
+        return $this->post('/einvoice/Draft/CreateBulk', $data)->json();
+    }
+
+    /**
+     * POST /einvoice/Draft/ConfirmAndSend
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function confirmAndSendDraft(array $data): array
+    {
+        return $this->post('/einvoice/Draft/ConfirmAndSend', $data)->json();
+    }
+
+    /**
+     * DELETE /einvoice/Draft/{uuid}
      */
     public function deleteDraft(string $uuid): void
     {
-        $this->delete("/eskgb/Draft/{$uuid}");
-    }
-
-    /**
-     * Send a draft document.
-     *
-     * POST /eskgb/Draft/{uuid}/Send
-     *
-     * @return array<string, mixed>
-     */
-    public function sendDraft(string $uuid): array
-    {
-        return $this->post("/eskgb/Draft/{$uuid}/Send")->json();
+        $this->delete("/einvoice/Draft/{$uuid}");
     }
 }

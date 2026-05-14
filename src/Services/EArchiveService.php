@@ -5,84 +5,227 @@ declare(strict_types=1);
 namespace Nilvera\Services;
 
 /**
- * E-Archive Invoice (e-Arşiv) API.
- * Base path: /earchive
+ * E-Archive Invoice (e-Arşiv) API — base path: /earchive
  *
- * Handles e-archive invoices, drafts, reports, series, templates, and more.
+ * Covers: sending, invoices, incoming GIB invoices, drafts, reports,
+ * old invoices, series, templates, tags, notification settings, statistics,
+ * and file upload.
  */
 class EArchiveService extends AbstractService
 {
+    // -------------------------------------------------------------------------
+    // Sending
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST /earchive/Send/Model
+     *
+     * @param array<string, mixed> $invoice
+     * @return array<string, mixed>
+     */
+    public function send(array $invoice): array
+    {
+        return $this->post('/earchive/Send/Model', $invoice)->json();
+    }
+
+    /**
+     * POST /earchive/Send/Xml
+     *
+     * @return array<string, mixed>
+     */
+    public function sendXml(string $xmlContent): array
+    {
+        return $this->post('/earchive/Send/Xml', ['XmlContent' => $xmlContent])->json();
+    }
+
+    /**
+     * POST /earchive/Send/Report — submit e-archive report to GIB.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function sendReport(array $data = []): array
+    {
+        return $this->post('/earchive/Send/Report', $data)->json();
+    }
+
+    /**
+     * POST /earchive/Upload — upload a UBL XML file.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function upload(array $data): array
+    {
+        return $this->post('/earchive/Upload', $data)->json();
+    }
+
     // -------------------------------------------------------------------------
     // E-Archive Invoices
     // -------------------------------------------------------------------------
 
     /**
-     * List e-archive invoices.
+     * GET /earchive/Invoices
      *
-     * GET /earchive/EArchiveInvoice
-     *
-     * @param array<string, mixed> $query  Supported: page, pageSize, startDate, endDate, ...
+     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
     public function listInvoices(array $query = []): array
     {
-        return $this->get('/earchive/EArchiveInvoice', $query)->json();
+        return $this->get('/earchive/Invoices', $query)->json();
     }
 
     /**
-     * Get a single e-archive invoice by UUID.
+     * POST /earchive/Invoices — convert an order to an e-archive invoice.
      *
-     * GET /earchive/EArchiveInvoice/{uuid}
-     *
+     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function getInvoice(string $uuid): array
+    public function convertOrderToInvoice(array $data): array
     {
-        return $this->get("/earchive/EArchiveInvoice/{$uuid}")->json();
+        return $this->post('/earchive/Invoices', $data)->json();
     }
 
     /**
-     * Get the HTML representation of an e-archive invoice.
-     *
-     * GET /earchive/EArchiveInvoice/{uuid}/Html
+     * GET /earchive/Invoices/{uuid}/html
      */
     public function getInvoiceHtml(string $uuid): string
     {
-        return $this->get("/earchive/EArchiveInvoice/{$uuid}/Html")->getBody();
+        return $this->get("/earchive/Invoices/{$uuid}/html")->getBody();
     }
 
     /**
-     * Get the PDF binary of an e-archive invoice.
-     *
-     * GET /earchive/EArchiveInvoice/{uuid}/Pdf
+     * GET /earchive/Invoices/{uuid}/pdf
      */
     public function getInvoicePdf(string $uuid): string
     {
-        return $this->get("/earchive/EArchiveInvoice/{$uuid}/Pdf")->getBody();
+        return $this->get("/earchive/Invoices/{$uuid}/pdf")->getBody();
     }
 
     /**
-     * Cancel an e-archive invoice.
+     * GET /earchive/Invoices/{uuid}/xml
+     */
+    public function getInvoiceXml(string $uuid): string
+    {
+        return $this->get("/earchive/Invoices/{$uuid}/xml")->getBody();
+    }
+
+    /**
+     * GET /earchive/Invoices/{uuid}/Histories
      *
-     * DELETE /earchive/EArchiveInvoice/{uuid}
+     * @return array<string, mixed>
+     */
+    public function getInvoiceHistories(string $uuid): array
+    {
+        return $this->get("/earchive/Invoices/{$uuid}/Histories")->json();
+    }
+
+    /**
+     * GET /earchive/Invoices/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getInvoiceTags(string $uuid): array
+    {
+        return $this->get("/earchive/Invoices/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * PUT /earchive/Invoices/{uuid}/Cancel
      */
     public function cancelInvoice(string $uuid): void
     {
-        $this->delete("/earchive/EArchiveInvoice/{$uuid}");
+        $this->put("/earchive/Invoices/{$uuid}/Cancel");
     }
 
     /**
-     * Send an e-archive invoice via email.
+     * PUT /earchive/Invoices/Tags — assign tags to multiple invoices.
      *
-     * POST /earchive/EArchiveInvoice/{uuid}/Email
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToInvoices(array $data): void
+    {
+        $this->put('/earchive/Invoices/Tags', $data);
+    }
+
+    /**
+     * PUT /earchive/Invoices/SpecialCode
+     *
+     * @param array<string, mixed> $data
+     */
+    public function setInvoiceSpecialCode(array $data): void
+    {
+        $this->put('/earchive/Invoices/SpecialCode', $data);
+    }
+
+    /**
+     * POST /earchive/Invoices/Email/Send
      *
      * @param string[] $emailAddresses
      */
     public function sendInvoiceByEmail(string $uuid, array $emailAddresses): void
     {
-        $this->post("/earchive/EArchiveInvoice/{$uuid}/Email", [
+        $this->post('/earchive/Invoices/Email/Send', [
+            'UUID'           => $uuid,
             'emailAddresses' => $emailAddresses,
         ]);
+    }
+
+    /**
+     * POST /earchive/Invoices/Sms/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendInvoiceBySms(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/earchive/Invoices/Sms/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * POST /earchive/Invoices/Whatsapp/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendInvoiceByWhatsapp(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/earchive/Invoices/Whatsapp/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * POST /earchive/Invoices/Bulk/Draft — save multiple invoices as drafts.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function bulkCreateDraftFromInvoices(array $data): array
+    {
+        return $this->post('/earchive/Invoices/Bulk/Draft', $data)->json();
+    }
+
+    /**
+     * POST /earchive/Invoices/{uuid}/CreateDraft
+     *
+     * @return array<string, mixed>
+     */
+    public function createDraftFromInvoice(string $uuid): array
+    {
+        return $this->post("/earchive/Invoices/{$uuid}/CreateDraft")->json();
+    }
+
+    /**
+     * GET /earchive/Gib/Purchase — sync incoming e-archive invoices from GIB.
+     *
+     * @return array<string, mixed>
+     */
+    public function syncPurchaseFromGib(): array
+    {
+        return $this->get('/earchive/Gib/Purchase')->json();
     }
 
     // -------------------------------------------------------------------------
@@ -90,8 +233,6 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List e-archive draft invoices.
-     *
      * GET /earchive/Draft
      *
      * @param array<string, mixed> $query
@@ -103,46 +244,69 @@ class EArchiveService extends AbstractService
     }
 
     /**
-     * Get a single draft by UUID.
-     *
-     * GET /earchive/Draft/{uuid}
-     *
-     * @return array<string, mixed>
+     * GET /earchive/Draft/{uuid}/html
      */
-    public function getDraft(string $uuid): array
+    public function getDraftHtml(string $uuid): string
     {
-        return $this->get("/earchive/Draft/{$uuid}")->json();
+        return $this->get("/earchive/Draft/{$uuid}/html")->getBody();
     }
 
     /**
-     * Create a new e-archive draft invoice.
+     * GET /earchive/Draft/{uuid}/pdf
+     */
+    public function getDraftPdf(string $uuid): string
+    {
+        return $this->get("/earchive/Draft/{$uuid}/pdf")->getBody();
+    }
+
+    /**
+     * GET /earchive/Draft/{uuid}/xml
+     */
+    public function getDraftXml(string $uuid): string
+    {
+        return $this->get("/earchive/Draft/{$uuid}/xml")->getBody();
+    }
+
+    /**
+     * GET /earchive/Draft/{uuid}/model
      *
-     * POST /earchive/Draft
+     * @return array<string, mixed>
+     */
+    public function getDraftModel(string $uuid): array
+    {
+        return $this->get("/earchive/Draft/{$uuid}/model")->json();
+    }
+
+    /**
+     * GET /earchive/Draft/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getDraftTags(string $uuid): array
+    {
+        return $this->get("/earchive/Draft/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * POST /earchive/Draft/Create
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
     public function createDraft(array $data): array
     {
-        return $this->post('/earchive/Draft', $data)->json();
+        return $this->post('/earchive/Draft/Create', $data)->json();
     }
 
     /**
-     * Update an e-archive draft invoice.
-     *
-     * PUT /earchive/Draft/{uuid}
-     *
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
+     * DELETE /earchive/Draft — bulk delete drafts.
      */
-    public function updateDraft(string $uuid, array $data): array
+    public function deleteDraftsBulk(): void
     {
-        return $this->put("/earchive/Draft/{$uuid}", $data)->json();
+        $this->delete('/earchive/Draft');
     }
 
     /**
-     * Delete an e-archive draft invoice.
-     *
      * DELETE /earchive/Draft/{uuid}
      */
     public function deleteDraft(string $uuid): void
@@ -151,15 +315,44 @@ class EArchiveService extends AbstractService
     }
 
     /**
-     * Send a draft (convert to e-archive invoice).
+     * POST /earchive/Draft/EditAndSend
      *
-     * POST /earchive/Draft/{uuid}/Send
-     *
+     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function sendDraft(string $uuid): array
+    public function editAndSendDraft(array $data): array
     {
-        return $this->post("/earchive/Draft/{$uuid}/Send")->json();
+        return $this->post('/earchive/Draft/EditAndSend', $data)->json();
+    }
+
+    /**
+     * POST /earchive/Draft/Whatsapp/Send
+     *
+     * @param array<string, mixed> $data
+     */
+    public function sendDraftByWhatsapp(array $data): void
+    {
+        $this->post('/earchive/Draft/Whatsapp/Send', $data);
+    }
+
+    /**
+     * PUT /earchive/Draft/Tags
+     *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToDrafts(array $data): void
+    {
+        $this->put('/earchive/Draft/Tags', $data);
+    }
+
+    /**
+     * PUT /earchive/Draft/SpecialCode
+     *
+     * @param array<string, mixed> $data
+     */
+    public function setDraftSpecialCode(array $data): void
+    {
+        $this->put('/earchive/Draft/SpecialCode', $data);
     }
 
     // -------------------------------------------------------------------------
@@ -167,8 +360,6 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List e-archive reports.
-     *
      * GET /earchive/Report
      *
      * @param array<string, mixed> $query
@@ -180,16 +371,56 @@ class EArchiveService extends AbstractService
     }
 
     /**
-     * Submit e-archive report to GIB.
+     * GET /earchive/Report/ToReport — invoices waiting to be reported.
      *
-     * POST /earchive/Report
-     *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function submitReport(array $data): array
+    public function listInvoicesToReport(): array
     {
-        return $this->post('/earchive/Report', $data)->json();
+        return $this->get('/earchive/Report/ToReport')->json();
+    }
+
+    /**
+     * GET /earchive/Report/{uuid}/xml
+     */
+    public function getReportXml(string $uuid): string
+    {
+        return $this->get("/earchive/Report/{$uuid}/xml")->getBody();
+    }
+
+    /**
+     * GET /earchive/Report/{uuid}/CheckFromGib — query report status from GIB.
+     *
+     * @return array<string, mixed>
+     */
+    public function checkReportFromGib(string $uuid): array
+    {
+        return $this->get("/earchive/Report/{$uuid}/CheckFromGib")->json();
+    }
+
+    /**
+     * GET /earchive/Report/{uuid}/Histories
+     *
+     * @return array<string, mixed>
+     */
+    public function getReportHistories(string $uuid): array
+    {
+        return $this->get("/earchive/Report/{$uuid}/Histories")->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Old Invoices
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /earchive/Old
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listOldInvoices(array $query = []): array
+    {
+        return $this->get('/earchive/Old', $query)->json();
     }
 
     // -------------------------------------------------------------------------
@@ -197,8 +428,6 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List invoice series.
-     *
      * GET /earchive/Series
      *
      * @return array<string, mixed>
@@ -209,8 +438,6 @@ class EArchiveService extends AbstractService
     }
 
     /**
-     * Create a new invoice series.
-     *
      * POST /earchive/Series
      *
      * @param array<string, mixed> $data
@@ -226,15 +453,58 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List invoice templates.
-     *
-     * GET /earchive/Template
+     * GET /earchive/Templates
      *
      * @return array<string, mixed>
      */
     public function listTemplates(): array
     {
-        return $this->get('/earchive/Template')->json();
+        return $this->get('/earchive/Templates')->json();
+    }
+
+    /**
+     * GET /earchive/Templates/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getTemplate(int $id): array
+    {
+        return $this->get("/earchive/Templates/{$id}")->json();
+    }
+
+    /**
+     * PUT /earchive/Templates
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateTemplate(array $data): array
+    {
+        return $this->put('/earchive/Templates', $data)->json();
+    }
+
+    /**
+     * GET /earchive/Templates/Preview/{uuid}
+     */
+    public function previewTemplate(string $uuid): string
+    {
+        return $this->get("/earchive/Templates/Preview/{$uuid}")->getBody();
+    }
+
+    /**
+     * GET /earchive/Templates/Download/{id}
+     */
+    public function downloadTemplate(int $id): string
+    {
+        return $this->get("/earchive/Templates/Download/{$id}")->getBody();
+    }
+
+    /**
+     * DELETE /earchive/Templates/{id}
+     */
+    public function deleteTemplate(int $id): void
+    {
+        $this->delete("/earchive/Templates/{$id}");
     }
 
     // -------------------------------------------------------------------------
@@ -242,28 +512,23 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List tags.
-     *
-     * GET /earchive/Tag
+     * GET /earchive/Tags
      *
      * @return array<string, mixed>
      */
     public function listTags(): array
     {
-        return $this->get('/earchive/Tag')->json();
+        return $this->get('/earchive/Tags')->json();
     }
 
     /**
-     * Assign a tag to an invoice.
-     *
-     * POST /earchive/Tag
+     * PUT /earchive/Tags
      *
      * @param array<string, mixed> $data
-     * @return array<string, mixed>
      */
-    public function assignTag(array $data): array
+    public function updateTags(array $data): void
     {
-        return $this->post('/earchive/Tag', $data)->json();
+        $this->put('/earchive/Tags', $data);
     }
 
     // -------------------------------------------------------------------------
@@ -271,28 +536,43 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * Get notification settings.
-     *
-     * GET /earchive/NotificationSetting
+     * GET /earchive/Notification
      *
      * @return array<string, mixed>
      */
-    public function getNotificationSettings(): array
+    public function listNotifications(): array
     {
-        return $this->get('/earchive/NotificationSetting')->json();
+        return $this->get('/earchive/Notification')->json();
     }
 
     /**
-     * Update notification settings.
-     *
-     * PUT /earchive/NotificationSetting
+     * POST /earchive/Notification
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function updateNotificationSettings(array $data): array
+    public function createNotification(array $data): array
     {
-        return $this->put('/earchive/NotificationSetting', $data)->json();
+        return $this->post('/earchive/Notification', $data)->json();
+    }
+
+    /**
+     * PUT /earchive/Notification
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateNotification(array $data): array
+    {
+        return $this->put('/earchive/Notification', $data)->json();
+    }
+
+    /**
+     * DELETE /earchive/Notification/{id}
+     */
+    public function deleteNotification(int $id): void
+    {
+        $this->delete("/earchive/Notification/{$id}");
     }
 
     // -------------------------------------------------------------------------
@@ -300,32 +580,23 @@ class EArchiveService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * Get e-archive statistics.
-     *
-     * GET /earchive/Statistic
+     * GET /earchive/Statistics
      *
      * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
     public function getStatistics(array $query = []): array
     {
-        return $this->get('/earchive/Statistic', $query)->json();
+        return $this->get('/earchive/Statistics', $query)->json();
     }
 
-    // -------------------------------------------------------------------------
-    // File Upload
-    // -------------------------------------------------------------------------
-
     /**
-     * Upload a file for attachment.
+     * GET /earchive/Statistics/Last
      *
-     * POST /earchive/FileUpload
-     *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function uploadFile(array $data): array
+    public function getLastStatistics(): array
     {
-        return $this->post('/earchive/FileUpload', $data)->json();
+        return $this->get('/earchive/Statistics/Last')->json();
     }
 }

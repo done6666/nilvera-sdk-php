@@ -5,33 +5,20 @@ declare(strict_types=1);
 namespace Nilvera\Services;
 
 /**
- * E-Invoice (e-Fatura) API.
- * Base path: /einvoice
+ * E-Invoice (e-Fatura) API — base path: /einvoice
  *
- * Handles outgoing (sale) invoices, incoming (purchase) invoices, and drafts.
+ * Covers: sending, outgoing (sale), incoming (purchase), drafts,
+ * insurance documents (e-SKGB), series, templates, tags,
+ * notification settings, statistics, old invoices, and file upload.
  */
 class EInvoiceService extends AbstractService
 {
     // -------------------------------------------------------------------------
-    // Sending Invoices
+    // Sending
     // -------------------------------------------------------------------------
 
     /**
-     * Send an e-invoice using a structured model.
-     *
      * POST /einvoice/Send/Model
-     *
-     * $invoice example:
-     * [
-     *   'EInvoice' => [
-     *     'InvoiceInfo'   => [...],
-     *     'CompanyInfo'   => [...],
-     *     'CustomerInfo'  => [...],
-     *     'InvoiceLines'  => [...],
-     *     'Notes'         => [],
-     *   ],
-     *   'CustomerAlias' => null,
-     * ]
      *
      * @param array<string, mixed> $invoice
      * @return array{UUID: string, InvoiceNumber: ?string}
@@ -42,8 +29,27 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Send an e-invoice using raw UBL XML content.
+     * POST /einvoice/Send/Model/Preview
      *
+     * @param array<string, mixed> $invoice
+     * @return array<string, mixed>
+     */
+    public function preview(array $invoice): array
+    {
+        return $this->post('/einvoice/Send/Model/Preview', $invoice)->json();
+    }
+
+    /**
+     * POST /einvoice/Send/Model/Download/Pdf — returns PDF binary.
+     *
+     * @param array<string, mixed> $invoice
+     */
+    public function downloadPdf(array $invoice): string
+    {
+        return $this->post('/einvoice/Send/Model/Download/Pdf', $invoice)->getBody();
+    }
+
+    /**
      * POST /einvoice/Send/Xml
      *
      * @return array{UUID: string, InvoiceNumber: ?string}
@@ -53,16 +59,35 @@ class EInvoiceService extends AbstractService
         return $this->post('/einvoice/Send/Xml', ['XmlContent' => $xmlContent])->json();
     }
 
+    /**
+     * POST /einvoice/Send/Base64String
+     *
+     * @return array{UUID: string, InvoiceNumber: ?string}
+     */
+    public function sendBase64(string $base64Content): array
+    {
+        return $this->post('/einvoice/Send/Base64String', ['Base64Content' => $base64Content])->json();
+    }
+
+    /**
+     * POST /einvoice/Upload — upload a UBL XML file.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function upload(array $data): array
+    {
+        return $this->post('/einvoice/Upload', $data)->json();
+    }
+
     // -------------------------------------------------------------------------
     // Sale (Outgoing) Invoices
     // -------------------------------------------------------------------------
 
     /**
-     * List outgoing (sale) invoices.
-     *
      * GET /einvoice/Sale
      *
-     * @param array<string, mixed> $query  Supported: page, pageSize, startDate, endDate, invoiceNumber, ...
+     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
     public function listSaleInvoices(array $query = []): array
@@ -71,50 +96,40 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Get a single outgoing invoice by UUID.
-     *
-     * GET /einvoice/Sale/{uuid}
-     *
-     * @return array<string, mixed>
-     */
-    public function getSaleInvoice(string $uuid): array
-    {
-        return $this->get("/einvoice/Sale/{$uuid}")->json();
-    }
-
-    /**
-     * Get the HTML representation of an outgoing invoice.
-     *
-     * GET /einvoice/Sale/{uuid}/Html
+     * GET /einvoice/Sale/{uuid}/html
      */
     public function getSaleInvoiceHtml(string $uuid): string
     {
-        return $this->get("/einvoice/Sale/{$uuid}/Html")->getBody();
+        return $this->get("/einvoice/Sale/{$uuid}/html")->getBody();
     }
 
     /**
-     * Get the PDF binary of an outgoing invoice.
-     *
-     * GET /einvoice/Sale/{uuid}/Pdf
+     * GET /einvoice/Sale/{uuid}/pdf
      */
     public function getSaleInvoicePdf(string $uuid): string
     {
-        return $this->get("/einvoice/Sale/{$uuid}/Pdf")->getBody();
+        return $this->get("/einvoice/Sale/{$uuid}/pdf")->getBody();
     }
 
     /**
-     * Get the UBL XML of an outgoing invoice.
-     *
-     * GET /einvoice/Sale/{uuid}/Xml
+     * GET /einvoice/Sale/{uuid}/xml
      */
     public function getSaleInvoiceXml(string $uuid): string
     {
-        return $this->get("/einvoice/Sale/{$uuid}/Xml")->getBody();
+        return $this->get("/einvoice/Sale/{$uuid}/xml")->getBody();
     }
 
     /**
-     * Retrieve GIB envelope information for an outgoing invoice.
+     * GET /einvoice/Sale/{uuid}/model
      *
+     * @return array<string, mixed>
+     */
+    public function getSaleInvoiceModel(string $uuid): array
+    {
+        return $this->get("/einvoice/Sale/{$uuid}/model")->json();
+    }
+
+    /**
      * GET /einvoice/Sale/{uuid}/EnvelopeInfo
      *
      * @return array{GIBCode: ?string, GIBDescription: ?string, EnvelopeUUID: ?string}
@@ -125,15 +140,100 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Send an outgoing invoice via email.
+     * GET /einvoice/Sale/{uuid}/Status
      *
-     * POST /einvoice/Sale/{uuid}/Email
+     * @return array<string, mixed>
+     */
+    public function getSaleInvoiceStatus(string $uuid): array
+    {
+        return $this->get("/einvoice/Sale/{$uuid}/Status")->json();
+    }
+
+    /**
+     * GET /einvoice/Sale/{uuid}/Histories
+     *
+     * @return array<string, mixed>
+     */
+    public function getSaleInvoiceHistories(string $uuid): array
+    {
+        return $this->get("/einvoice/Sale/{$uuid}/Histories")->json();
+    }
+
+    /**
+     * GET /einvoice/Sale/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getSaleInvoiceTags(string $uuid): array
+    {
+        return $this->get("/einvoice/Sale/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * PUT /einvoice/Sale/{uuid}/Cancel
+     */
+    public function cancelSaleInvoice(string $uuid): void
+    {
+        $this->put("/einvoice/Sale/{$uuid}/Cancel");
+    }
+
+    /**
+     * PUT /einvoice/Sale/Tags — assign tags to outgoing invoices.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToSaleInvoices(array $data): void
+    {
+        $this->put('/einvoice/Sale/Tags', $data);
+    }
+
+    /**
+     * PUT /einvoice/Sale/SpecialCode
+     *
+     * @param array<string, mixed> $data
+     */
+    public function setSaleInvoiceSpecialCode(array $data): void
+    {
+        $this->put('/einvoice/Sale/SpecialCode', $data);
+    }
+
+    /**
+     * POST /einvoice/Sale/Email/Send
      *
      * @param string[] $emailAddresses
      */
     public function sendSaleInvoiceByEmail(string $uuid, array $emailAddresses): void
     {
-        $this->post("/einvoice/Sale/{$uuid}/Email", ['emailAddresses' => $emailAddresses]);
+        $this->post('/einvoice/Sale/Email/Send', [
+            'UUID'           => $uuid,
+            'emailAddresses' => $emailAddresses,
+        ]);
+    }
+
+    /**
+     * POST /einvoice/Sale/Sms/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendSaleInvoiceBySms(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/einvoice/Sale/Sms/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * POST /einvoice/Sale/Whatsapp/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendSaleInvoiceByWhatsapp(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/einvoice/Sale/Whatsapp/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
     }
 
     // -------------------------------------------------------------------------
@@ -141,11 +241,9 @@ class EInvoiceService extends AbstractService
     // -------------------------------------------------------------------------
 
     /**
-     * List incoming (purchase) invoices.
-     *
      * GET /einvoice/Purchase
      *
-     * @param array<string, mixed> $query  Supported: page, pageSize, startDate, endDate, ...
+     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
     public function listPurchaseInvoices(array $query = []): array
@@ -154,51 +252,61 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Get a single incoming invoice by UUID.
-     *
-     * GET /einvoice/Purchase/{uuid}
-     *
-     * @return array<string, mixed>
-     */
-    public function getPurchaseInvoice(string $uuid): array
-    {
-        return $this->get("/einvoice/Purchase/{$uuid}")->json();
-    }
-
-    /**
-     * Get the HTML representation of an incoming invoice.
-     *
-     * GET /einvoice/Purchase/{uuid}/Html
+     * GET /einvoice/Purchase/{uuid}/html
      */
     public function getPurchaseInvoiceHtml(string $uuid): string
     {
-        return $this->get("/einvoice/Purchase/{$uuid}/Html")->getBody();
+        return $this->get("/einvoice/Purchase/{$uuid}/html")->getBody();
     }
 
     /**
-     * Get the PDF binary of an incoming invoice.
-     *
-     * GET /einvoice/Purchase/{uuid}/Pdf
+     * GET /einvoice/Purchase/{uuid}/pdf
      */
     public function getPurchaseInvoicePdf(string $uuid): string
     {
-        return $this->get("/einvoice/Purchase/{$uuid}/Pdf")->getBody();
+        return $this->get("/einvoice/Purchase/{$uuid}/pdf")->getBody();
     }
 
     /**
-     * Get the UBL XML of an incoming invoice.
-     *
-     * GET /einvoice/Purchase/{uuid}/Xml
+     * GET /einvoice/Purchase/{uuid}/xml
      */
     public function getPurchaseInvoiceXml(string $uuid): string
     {
-        return $this->get("/einvoice/Purchase/{$uuid}/Xml")->getBody();
+        return $this->get("/einvoice/Purchase/{$uuid}/xml")->getBody();
     }
 
     /**
-     * Mark an incoming invoice as read.
+     * GET /einvoice/Purchase/{uuid}/model
      *
-     * PUT /einvoice/Purchase/{uuid}/Read
+     * @return array<string, mixed>
+     */
+    public function getPurchaseInvoiceModel(string $uuid): array
+    {
+        return $this->get("/einvoice/Purchase/{$uuid}/model")->json();
+    }
+
+    /**
+     * GET /einvoice/Purchase/{uuid}/EnvelopeInfo
+     *
+     * @return array{GIBCode: ?string, GIBDescription: ?string, EnvelopeUUID: ?string}
+     */
+    public function getPurchaseInvoiceEnvelopeInfo(string $uuid): array
+    {
+        return $this->get("/einvoice/Purchase/{$uuid}/EnvelopeInfo")->json();
+    }
+
+    /**
+     * GET /einvoice/Purchase/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getPurchaseInvoiceTags(string $uuid): array
+    {
+        return $this->get("/einvoice/Purchase/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * PUT /einvoice/Purchase/{uuid}/Read — mark invoice as read.
      */
     public function markPurchaseInvoiceAsRead(string $uuid): void
     {
@@ -206,8 +314,6 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Create a return (irsaliye iade) invoice from an incoming invoice.
-     *
      * POST /einvoice/Purchase/{uuid}/CreateReturn
      *
      * @return array{UUID: string, InvoiceNumber: ?string}
@@ -218,8 +324,16 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Send an incoming invoice via email.
+     * PUT /einvoice/Purchase/Tags
      *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToPurchaseInvoices(array $data): void
+    {
+        $this->put('/einvoice/Purchase/Tags', $data);
+    }
+
+    /**
      * POST /einvoice/Purchase/Email/Send
      *
      * @param string[] $emailAddresses
@@ -232,13 +346,34 @@ class EInvoiceService extends AbstractService
         ]);
     }
 
+    /**
+     * POST /einvoice/Purchase/Sms/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendPurchaseInvoiceBySms(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/einvoice/Purchase/Sms/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * GET /einvoice/Gib/Purchase — sync incoming invoices from GIB.
+     *
+     * @return array<string, mixed>
+     */
+    public function syncPurchaseFromGib(): array
+    {
+        return $this->get('/einvoice/Gib/Purchase')->json();
+    }
+
     // -------------------------------------------------------------------------
     // Draft Invoices
     // -------------------------------------------------------------------------
 
     /**
-     * List draft invoices.
-     *
      * GET /einvoice/Draft
      *
      * @param array<string, mixed> $query
@@ -250,46 +385,81 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Get a single draft invoice by UUID.
-     *
-     * GET /einvoice/Draft/{uuid}
-     *
-     * @return array<string, mixed>
+     * GET /einvoice/Draft/{uuid}/html
      */
-    public function getDraft(string $uuid): array
+    public function getDraftHtml(string $uuid): string
     {
-        return $this->get("/einvoice/Draft/{$uuid}")->json();
+        return $this->get("/einvoice/Draft/{$uuid}/html")->getBody();
     }
 
     /**
-     * Create a new draft invoice.
+     * GET /einvoice/Draft/{uuid}/pdf
+     */
+    public function getDraftPdf(string $uuid): string
+    {
+        return $this->get("/einvoice/Draft/{$uuid}/pdf")->getBody();
+    }
+
+    /**
+     * GET /einvoice/Draft/{uuid}/xml
+     */
+    public function getDraftXml(string $uuid): string
+    {
+        return $this->get("/einvoice/Draft/{$uuid}/xml")->getBody();
+    }
+
+    /**
+     * GET /einvoice/Draft/{uuid}/model
      *
-     * POST /einvoice/Draft
+     * @return array<string, mixed>
+     */
+    public function getDraftModel(string $uuid): array
+    {
+        return $this->get("/einvoice/Draft/{$uuid}/model")->json();
+    }
+
+    /**
+     * GET /einvoice/Draft/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getDraftTags(string $uuid): array
+    {
+        return $this->get("/einvoice/Draft/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * GET /einvoice/Draft/{uuid}/Whatsapphistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getDraftWhatsappHistories(string $uuid): array
+    {
+        return $this->get("/einvoice/Draft/{$uuid}/Whatsapphistories")->json();
+    }
+
+    /**
+     * POST /einvoice/Draft/Create
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
     public function createDraft(array $data): array
     {
-        return $this->post('/einvoice/Draft', $data)->json();
+        return $this->post('/einvoice/Draft/Create', $data)->json();
     }
 
     /**
-     * Update an existing draft invoice.
-     *
-     * PUT /einvoice/Draft/{uuid}
+     * DELETE /einvoice/Draft — bulk delete drafts.
      *
      * @param array<string, mixed> $data
-     * @return array<string, mixed>
      */
-    public function updateDraft(string $uuid, array $data): array
+    public function deleteDraftsBulk(array $data = []): void
     {
-        return $this->put("/einvoice/Draft/{$uuid}", $data)->json();
+        $this->delete('/einvoice/Draft');
     }
 
     /**
-     * Delete a draft invoice.
-     *
      * DELETE /einvoice/Draft/{uuid}
      */
     public function deleteDraft(string $uuid): void
@@ -298,14 +468,345 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * Send a draft invoice (convert draft to actual invoice).
-     *
-     * POST /einvoice/Draft/{uuid}/Send
+     * POST /einvoice/Draft/{uuid}/Send — send a specific draft.
      *
      * @return array{UUID: string, InvoiceNumber: ?string}
      */
     public function sendDraft(string $uuid): array
     {
         return $this->post("/einvoice/Draft/{$uuid}/Send")->json();
+    }
+
+    /**
+     * POST /einvoice/Draft/EditAndSend — update payload and send immediately.
+     *
+     * @param array<string, mixed> $data
+     * @return array{UUID: string, InvoiceNumber: ?string}
+     */
+    public function editAndSendDraft(array $data): array
+    {
+        return $this->post('/einvoice/Draft/EditAndSend', $data)->json();
+    }
+
+    /**
+     * PUT /einvoice/Draft/Tags
+     *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToDrafts(array $data): void
+    {
+        $this->put('/einvoice/Draft/Tags', $data);
+    }
+
+    /**
+     * PUT /einvoice/Draft/SpecialCode
+     *
+     * @param array<string, mixed> $data
+     */
+    public function setDraftSpecialCode(array $data): void
+    {
+        $this->put('/einvoice/Draft/SpecialCode', $data);
+    }
+
+    /**
+     * POST /einvoice/Draft/Whatsapp/Send
+     *
+     * @param array<string, mixed> $data
+     */
+    public function sendDraftByWhatsapp(array $data): void
+    {
+        $this->post('/einvoice/Draft/Whatsapp/Send', $data);
+    }
+
+    // -------------------------------------------------------------------------
+    // Series
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Series
+     *
+     * @return array<string, mixed>
+     */
+    public function listSeries(): array
+    {
+        return $this->get('/einvoice/Series')->json();
+    }
+
+    /**
+     * POST /einvoice/Series
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createSeries(array $data): array
+    {
+        return $this->post('/einvoice/Series', $data)->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Templates
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Templates
+     *
+     * @return array<string, mixed>
+     */
+    public function listTemplates(): array
+    {
+        return $this->get('/einvoice/Templates')->json();
+    }
+
+    /**
+     * GET /einvoice/Templates/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getTemplate(int $id): array
+    {
+        return $this->get("/einvoice/Templates/{$id}")->json();
+    }
+
+    /**
+     * PUT /einvoice/Templates
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateTemplate(array $data): array
+    {
+        return $this->put('/einvoice/Templates', $data)->json();
+    }
+
+    /**
+     * GET /einvoice/Templates/Preview/{uuid}
+     */
+    public function previewTemplate(string $uuid): string
+    {
+        return $this->get("/einvoice/Templates/Preview/{$uuid}")->getBody();
+    }
+
+    /**
+     * DELETE /einvoice/Templates/{id}
+     */
+    public function deleteTemplate(int $id): void
+    {
+        $this->delete("/einvoice/Templates/{$id}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Tags
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function listTags(): array
+    {
+        return $this->get('/einvoice/Tags')->json();
+    }
+
+    /**
+     * PUT /einvoice/Tags
+     *
+     * @param array<string, mixed> $data
+     */
+    public function updateTags(array $data): void
+    {
+        $this->put('/einvoice/Tags', $data);
+    }
+
+    // -------------------------------------------------------------------------
+    // Notification Settings
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Notification
+     *
+     * @return array<string, mixed>
+     */
+    public function listNotifications(): array
+    {
+        return $this->get('/einvoice/Notification')->json();
+    }
+
+    /**
+     * POST /einvoice/Notification
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createNotification(array $data): array
+    {
+        return $this->post('/einvoice/Notification', $data)->json();
+    }
+
+    /**
+     * PUT /einvoice/Notification
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateNotification(array $data): array
+    {
+        return $this->put('/einvoice/Notification', $data)->json();
+    }
+
+    /**
+     * DELETE /einvoice/Notification/{id}
+     */
+    public function deleteNotification(int $id): void
+    {
+        $this->delete("/einvoice/Notification/{$id}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Statistics
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Statistics/Sale
+     *
+     * @param array<string, mixed> $query  Supported: StartDate, EndDate
+     * @return array<string, mixed>
+     */
+    public function getSaleStatistics(array $query = []): array
+    {
+        return $this->get('/einvoice/Statistics/Sale', $query)->json();
+    }
+
+    /**
+     * GET /einvoice/Statistics/Purchase
+     *
+     * @param array<string, mixed> $query  Supported: StartDate, EndDate
+     * @return array<string, mixed>
+     */
+    public function getPurchaseStatistics(array $query = []): array
+    {
+        return $this->get('/einvoice/Statistics/Purchase', $query)->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Old Invoices
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Old
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listOldInvoices(array $query = []): array
+    {
+        return $this->get('/einvoice/Old', $query)->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Insurance (e-SKGB) Documents — share the /einvoice namespace
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /einvoice/Insurances
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listInsurances(array $query = []): array
+    {
+        return $this->get('/einvoice/Insurances', $query)->json();
+    }
+
+    /**
+     * GET /einvoice/Insurances/{uuid}/Details
+     *
+     * @return array<string, mixed>
+     */
+    public function getInsuranceDetails(string $uuid): array
+    {
+        return $this->get("/einvoice/Insurances/{$uuid}/Details")->json();
+    }
+
+    /**
+     * GET /einvoice/Insurances/{uuid}/pdf
+     */
+    public function getInsurancePdf(string $uuid): string
+    {
+        return $this->get("/einvoice/Insurances/{$uuid}/pdf")->getBody();
+    }
+
+    /**
+     * GET /einvoice/Insurances/{uuid}/Status
+     *
+     * @return array<string, mixed>
+     */
+    public function getInsuranceStatus(string $uuid): array
+    {
+        return $this->get("/einvoice/Insurances/{$uuid}/Status")->json();
+    }
+
+    /**
+     * GET /einvoice/Insurances/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getInsuranceTags(string $uuid): array
+    {
+        return $this->get("/einvoice/Insurances/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * PUT /einvoice/Insurances/{uuid}/Cancel
+     */
+    public function cancelInsurance(string $uuid): void
+    {
+        $this->put("/einvoice/Insurances/{$uuid}/Cancel");
+    }
+
+    /**
+     * PUT /einvoice/Insurances/Tags
+     *
+     * @param array<string, mixed> $data
+     */
+    public function assignTagsToInsurances(array $data): void
+    {
+        $this->put('/einvoice/Insurances/Tags', $data);
+    }
+
+    /**
+     * POST /einvoice/Insurances/Email/Send
+     *
+     * @param string[] $emailAddresses
+     */
+    public function sendInsuranceByEmail(string $uuid, array $emailAddresses): void
+    {
+        $this->post('/einvoice/Insurances/Email/Send', [
+            'UUID'           => $uuid,
+            'emailAddresses' => $emailAddresses,
+        ]);
+    }
+
+    /**
+     * POST /einvoice/Insurances/Whatsapp/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendInsuranceByWhatsapp(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/einvoice/Insurances/Whatsapp/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
+     * POST /einvoice/Insurances/{uuid}/CreateDraft
+     *
+     * @return array<string, mixed>
+     */
+    public function createInsuranceDraft(string $uuid): array
+    {
+        return $this->post("/einvoice/Insurances/{$uuid}/CreateDraft")->json();
     }
 }

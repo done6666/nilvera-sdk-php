@@ -7,66 +7,102 @@ namespace Nilvera\Services;
 /**
  * E-Saklama (Document Storage/Archiving) API.
  * Base path: /estorage
+ *
+ * Covers: listing stored ledgers, download, preview, upload,
+ * base64 upload by tax number, statistics.
  */
 class EStorageService extends AbstractService
 {
+    // -------------------------------------------------------------------------
+    // Ledgers
+    // -------------------------------------------------------------------------
+
     /**
-     * List stored documents.
-     *
-     * GET /estorage/Document
+     * GET /estorage/Ledgers
      *
      * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listDocuments(array $query = []): array
+    public function listLedgers(array $query = []): array
     {
-        return $this->get('/estorage/Document', $query)->json();
+        return $this->get('/estorage/Ledgers', $query)->json();
     }
 
     /**
-     * Get a stored document by UUID.
-     *
-     * GET /estorage/Document/{uuid}
+     * GET /estorage/Ledgers/List/{taxNumber}
      *
      * @return array<string, mixed>
      */
-    public function getDocument(string $uuid): array
+    public function listLedgersByTaxNumber(string $taxNumber): array
     {
-        return $this->get("/estorage/Document/{$uuid}")->json();
+        return $this->get("/estorage/Ledgers/List/{$taxNumber}")->json();
     }
 
     /**
-     * Upload a document for storage.
-     *
-     * POST /estorage/Document
+     * POST /estorage/Ledgers/Download
      *
      * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function uploadDocument(array $data): array
+    public function downloadLedger(array $data): array
     {
-        return $this->post('/estorage/Document', $data)->json();
+        return $this->post('/estorage/Ledgers/Download', $data)->json();
     }
 
     /**
-     * Get the status of a stored document.
+     * POST /estorage/Ledgers/{uuid}/Preview
      *
-     * GET /estorage/Document/{uuid}/Status
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewLedger(string $uuid, array $data = []): array
+    {
+        return $this->post("/estorage/Ledgers/{$uuid}/Preview", $data)->json();
+    }
+
+    /**
+     * POST /estorage/Ledgers/Upload
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function upload(array $data): array
+    {
+        return $this->post('/estorage/Ledgers/Upload', $data)->json();
+    }
+
+    /**
+     * POST /estorage/Ledgers/Base64String/{taxNumber}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function uploadBase64(string $taxNumber, array $data): array
+    {
+        return $this->post("/estorage/Ledgers/Base64String/{$taxNumber}", $data)->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Statistics
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /estorage/Ledgers/Statistics
      *
      * @return array<string, mixed>
      */
-    public function getDocumentStatus(string $uuid): array
+    public function getStatistics(): array
     {
-        return $this->get("/estorage/Document/{$uuid}/Status")->json();
+        return $this->get('/estorage/Ledgers/Statistics')->json();
     }
 
     /**
-     * Delete a stored document.
+     * GET /estorage/Ledgers/Statistics/Last
      *
-     * DELETE /estorage/Document/{uuid}
+     * @return array<string, mixed>
      */
-    public function deleteDocument(string $uuid): void
+    public function getLastStatistics(): array
     {
-        $this->delete("/estorage/Document/{$uuid}");
+        return $this->get('/estorage/Ledgers/Statistics/Last')->json();
     }
 }

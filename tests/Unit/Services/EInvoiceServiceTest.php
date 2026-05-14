@@ -50,16 +50,16 @@ class EInvoiceServiceTest extends TestCase
         $this->assertSame([], $result['items']);
     }
 
-    public function test_get_sale_invoice_uses_uuid_in_path(): void
+    public function test_get_sale_invoice_model_uses_uuid_in_path(): void
     {
         $uuid = '550e8400-e29b-41d4-a716-446655440000';
 
         $this->guzzle->expects($this->once())
             ->method('request')
-            ->with('GET', "https://apitest.nilvera.com/einvoice/Sale/{$uuid}", $this->anything())
+            ->with('GET', "https://apitest.nilvera.com/einvoice/Sale/{$uuid}/model", $this->anything())
             ->willReturn(new GuzzleResponse(200, [], '{"UUID":"' . $uuid . '"}'));
 
-        $result = $this->service->getSaleInvoice($uuid);
+        $result = $this->service->getSaleInvoiceModel($uuid);
 
         $this->assertSame($uuid, $result['UUID']);
     }
@@ -84,8 +84,9 @@ class EInvoiceServiceTest extends TestCase
 
         $this->guzzle->expects($this->once())
             ->method('request')
-            ->with('POST', "https://apitest.nilvera.com/einvoice/Sale/{$uuid}/Email", $this->callback(
-                fn ($opts) => in_array('test@example.com', $opts['json']['emailAddresses'] ?? [])
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Sale/Email/Send', $this->callback(
+                fn ($opts) => ($opts['json']['UUID'] ?? null) === $uuid
+                    && in_array('test@example.com', $opts['json']['emailAddresses'] ?? [])
             ))
             ->willReturn(new GuzzleResponse(200, [], ''));
 
@@ -96,7 +97,7 @@ class EInvoiceServiceTest extends TestCase
     {
         $this->guzzle->expects($this->once())
             ->method('request')
-            ->with('POST', 'https://apitest.nilvera.com/einvoice/Draft', $this->anything())
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Draft/Create', $this->anything())
             ->willReturn(new GuzzleResponse(200, [], '{"UUID":"draft-uuid"}'));
 
         $result = $this->service->createDraft(['InvoiceInfo' => []]);
