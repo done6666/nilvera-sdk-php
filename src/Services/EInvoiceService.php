@@ -8,6 +8,7 @@ use Nilvera\Requests\ListInvoicesRequest;
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendBySmsRequest;
 use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Responses\SendDocumentResponse;
 
 /**
  * E-Invoice (e-Fatura) API — base path: /einvoice
@@ -24,12 +25,12 @@ class EInvoiceService extends AbstractService
 
     /**
      * POST /einvoice/Send/Model
-     *
-     * @return array{UUID: string, InvoiceNumber: ?string}
      */
-    public function send(SendInvoiceRequest $invoice): array
+    public function send(SendInvoiceRequest $invoice): SendDocumentResponse
     {
-        return $this->post('/einvoice/Send/Model', $invoice->toArray())->json();
+        return SendDocumentResponse::fromArray(
+            $this->post('/einvoice/Send/Model', $invoice->toArray())->json()
+        );
     }
 
     /**
@@ -443,23 +444,24 @@ class EInvoiceService extends AbstractService
 
     /**
      * POST /einvoice/Draft/{uuid}/Send — send a specific draft.
-     *
-     * @return array{UUID: string, InvoiceNumber: ?string}
      */
-    public function sendDraft(string $uuid): array
+    public function sendDraft(string $uuid): SendDocumentResponse
     {
-        return $this->post("/einvoice/Draft/{$uuid}/Send")->json();
+        return SendDocumentResponse::fromArray(
+            $this->post("/einvoice/Draft/{$uuid}/Send")->json()
+        );
     }
 
     /**
      * POST /einvoice/Draft/EditAndSend — update payload and send immediately.
      *
      * @param array<string, mixed> $data
-     * @return array{UUID: string, InvoiceNumber: ?string}
      */
-    public function editAndSendDraft(array $data): array
+    public function editAndSendDraft(array $data): SendDocumentResponse
     {
-        return $this->post('/einvoice/Draft/EditAndSend', $data)->json();
+        return SendDocumentResponse::fromArray(
+            $this->post('/einvoice/Draft/EditAndSend', $data)->json()
+        );
     }
 
     /**

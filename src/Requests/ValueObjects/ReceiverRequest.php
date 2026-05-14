@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nilvera\Requests\ValueObjects;
 
 use Nilvera\Requests\AbstractRequest;
+use Nilvera\Validation\TaxNumberValidator;
 
 /**
  * Fatura alıcısı (CustomerInfo) bilgilerini taşır.
@@ -51,17 +52,7 @@ readonly class ReceiverRequest extends AbstractRequest
 
     private function validateTaxNumber(): void
     {
-        if (!ctype_digit($this->taxNumber)) {
-            throw new \InvalidArgumentException('TaxNumber yalnızca rakam içermelidir.');
-        }
-
-        $len = strlen($this->taxNumber);
-
-        if ($len !== 10 && $len !== 11) {
-            throw new \InvalidArgumentException(
-                "TaxNumber 10 haneli VKN veya 11 haneli TCKN olmalıdır; {$len} hane girildi."
-            );
-        }
+        TaxNumberValidator::assertValid($this->taxNumber);
     }
 
     private function validateRequiredStrings(): void

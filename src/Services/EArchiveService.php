@@ -8,6 +8,7 @@ use Nilvera\Requests\ListInvoicesRequest;
 use Nilvera\Requests\SendArchiveInvoiceRequest;
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendBySmsRequest;
+use Nilvera\Responses\SendDocumentResponse;
 
 /**
  * E-Archive Invoice (e-Arşiv) API — base path: /earchive
@@ -24,12 +25,12 @@ class EArchiveService extends AbstractService
 
     /**
      * POST /earchive/Send/Model
-     *
-     * @return array<string, mixed>
      */
-    public function send(SendArchiveInvoiceRequest $invoice): array
+    public function send(SendArchiveInvoiceRequest $invoice): SendDocumentResponse
     {
-        return $this->post('/earchive/Send/Model', $invoice->toArray())->json();
+        return SendDocumentResponse::fromArray(
+            $this->post('/earchive/Send/Model', $invoice->toArray())->json()
+        );
     }
 
     /**

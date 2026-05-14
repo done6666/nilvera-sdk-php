@@ -8,6 +8,12 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Nilvera\Config;
 use Nilvera\Http\HttpClient;
+use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\SendByEmailRequest;
+use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
+use Nilvera\Requests\ValueObjects\ReceiverRequest;
+use Nilvera\Enums\UnitType;
 use Nilvera\Services\EInvoiceService;
 use PHPUnit\Framework\TestCase;
 
@@ -30,10 +36,23 @@ class EInvoiceServiceTest extends TestCase
             ->with('POST', 'https://apitest.nilvera.com/einvoice/Send/Model', $this->anything())
             ->willReturn(new GuzzleResponse(200, [], '{"UUID":"abc-123","InvoiceNumber":"INV-001"}'));
 
-        $result = $this->service->send(['EInvoice' => []]);
+        $receiver = new ReceiverRequest(
+            taxNumber: '1234567890',
+            name:      'Test Sirket',
+            address:   'Test Mah. No:1',
+            district:  'Kadikoy',
+            city:      'Istanbul',
+        );
+        $invoice = new SendInvoiceRequest(
+            customerInfo: $receiver,
+            invoiceLines: [InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000, 20)],
+            issueDate:    new \DateTimeImmutable('2026-05-14'),
+        );
 
-        $this->assertSame('abc-123', $result['UUID']);
-        $this->assertSame('INV-001', $result['InvoiceNumber']);
+        $result = $this->service->send($invoice);
+
+        $this->assertSame('abc-123', $result->uuid);
+        $this->assertSame('INV-001', $result->invoiceNumber);
     }
 
     public function test_list_sale_invoices_with_query_params(): void
@@ -41,11 +60,11 @@ class EInvoiceServiceTest extends TestCase
         $this->guzzle->expects($this->once())
             ->method('request')
             ->with('GET', 'https://apitest.nilvera.com/einvoice/Sale', $this->callback(
-                fn ($opts) => ($opts['query']['page'] ?? null) === 1
+                fn ($opts) => ($opts['query']['Page'] ?? null) === 1
             ))
             ->willReturn(new GuzzleResponse(200, [], '{"items":[],"total":0}'));
 
-        $result = $this->service->listSaleInvoices(['page' => 1]);
+        $result = $this->service->listSaleInvoices(new ListInvoicesRequest(page: 1));
 
         $this->assertSame([], $result['items']);
     }
@@ -90,7 +109,9 @@ class EInvoiceServiceTest extends TestCase
             ))
             ->willReturn(new GuzzleResponse(200, [], ''));
 
-        $this->service->sendSaleInvoiceByEmail($uuid, ['test@example.com']);
+        $this->service->sendSaleInvoiceByEmail(
+            new SendByEmailRequest($uuid, ['test@example.com'])
+        );
     }
 
     public function test_create_draft_sends_correct_payload(): void
