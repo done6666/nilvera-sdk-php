@@ -96,10 +96,37 @@ class HttpClient
                     'url'    => $url,
                 ]);
 
+                // Guzzle http_errors=>false modunda exception fırlatmaz;
+                // durum kodunu burada kontrol ederek doğru exception'ı fırlatıyoruz.
+                if ($statusCode >= 500) {
+                    $lastException = ApiException::fromResponse($statusCode, $body);
+                    $this->logger->warning('Nilvera API server error', [
+                        'status'  => $statusCode,
+                        'url'     => $url,
+                        'attempt' => $attempt,
+                    ]);
+                    continue;
+                }
+
+                if ($statusCode >= 400) {
+                    $this->logger->error('Nilvera API client error', [
+                        'status' => $statusCode,
+                        'url'    => $url,
+                        'body'   => $body,
+                    ]);
+                    throw match ($statusCode) {
+                        401, 403 => AuthenticationException::fromResponse($statusCode, $body),
+                        404      => NotFoundException::fromResponse($statusCode, $body),
+                        409      => ConflictException::fromResponse($statusCode, $body),
+                        422      => ValidationException::fromResponse($statusCode, $body),
+                        default  => ApiException::fromResponse($statusCode, $body),
+                    };
+                }
+
                 return new Response($statusCode, $body, $psrResponse->getHeaders());
 
             } catch (ClientException $e) {
-                // 4xx: istemci hatalari — yeniden deneme yapma
+                // http_errors=>true modunda Guzzle'ın fırlattığı 4xx exception'ları
                 $statusCode = $e->getResponse()->getStatusCode();
                 $body       = (string) $e->getResponse()->getBody();
 
@@ -118,7 +145,7 @@ class HttpClient
                 };
 
             } catch (ServerException $e) {
-                // 5xx: sunucu hatalari — yeniden denenebilir
+                // http_errors=>true modunda Guzzle'ın fırlattığı 5xx exception'ları
                 $statusCode    = $e->getResponse()->getStatusCode();
                 $body          = (string) $e->getResponse()->getBody();
                 $lastException = ApiException::fromResponse($statusCode, $body);

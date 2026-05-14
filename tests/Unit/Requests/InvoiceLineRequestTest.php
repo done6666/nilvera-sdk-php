@@ -66,11 +66,11 @@ class InvoiceLineRequestTest extends TestCase
     // toArray() structure
     // -------------------------------------------------------------------------
 
-    public function test_to_array_price_is_string(): void
+    public function test_to_array_price_is_float(): void
     {
         $line = InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000.5, 20);
 
-        $this->assertSame('1000.5', $line->toArray()['Price']);
+        $this->assertSame(1000.5, $line->toArray()['Price']);
     }
 
     public function test_to_array_unit_type_enum_is_value(): void

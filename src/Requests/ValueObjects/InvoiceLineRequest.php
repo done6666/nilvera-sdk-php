@@ -152,7 +152,7 @@ readonly class InvoiceLineRequest extends AbstractRequest
             'Description'     => $this->description,
             'Quantity'        => $this->quantity,
             'UnitType'        => $unitValue,
-            'Price'           => (string) $this->price,
+            'Price'           => $this->price,
             'AllowanceTotal'  => $this->allowanceTotal,
             'KDVPercent'      => $this->kdvPercent,
             'KDVTotal'        => $this->kdvTotal,

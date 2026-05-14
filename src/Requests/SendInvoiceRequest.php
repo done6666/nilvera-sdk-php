@@ -100,7 +100,7 @@ readonly class SendInvoiceRequest extends AbstractRequest
             'DespatchDocumentReference'  => $this->despatchDocumentReference !== [] ? $this->despatchDocumentReference : null,
         ]);
 
-        $payload = [
+        $eInvoice = [
             'InvoiceInfo'  => $invoiceInfo,
             'CustomerInfo' => $this->customerInfo->toArray(),
             'InvoiceLines' => array_map(
@@ -109,12 +109,14 @@ readonly class SendInvoiceRequest extends AbstractRequest
             ),
         ];
 
-        if ($this->customerAlias !== null) {
-            $payload['CustomerAlias'] = $this->customerAlias;
+        if ($this->notes !== []) {
+            $eInvoice['Notes'] = $this->notes;
         }
 
-        if ($this->notes !== []) {
-            $payload['Notes'] = $this->notes;
+        $payload = ['EInvoice' => $eInvoice];
+
+        if ($this->customerAlias !== null) {
+            $payload['CustomerAlias'] = $this->customerAlias;
         }
 
         return $payload;

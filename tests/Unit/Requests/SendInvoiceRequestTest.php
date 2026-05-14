@@ -47,9 +47,10 @@ class SendInvoiceRequestTest extends TestCase
     {
         $data = $this->makeRequest()->toArray();
 
-        $this->assertArrayHasKey('InvoiceInfo', $data);
-        $this->assertArrayHasKey('CustomerInfo', $data);
-        $this->assertArrayHasKey('InvoiceLines', $data);
+        $this->assertArrayHasKey('EInvoice', $data);
+        $this->assertArrayHasKey('InvoiceInfo', $data['EInvoice']);
+        $this->assertArrayHasKey('CustomerInfo', $data['EInvoice']);
+        $this->assertArrayHasKey('InvoiceLines', $data['EInvoice']);
     }
 
     public function test_to_array_omits_customer_alias_when_null(): void
@@ -72,14 +73,14 @@ class SendInvoiceRequestTest extends TestCase
     {
         $data = $this->makeRequest()->toArray();
 
-        $this->assertArrayNotHasKey('Notes', $data);
+        $this->assertArrayNotHasKey('Notes', $data['EInvoice']);
     }
 
     public function test_to_array_includes_notes_when_set(): void
     {
         $data = $this->makeRequest(['notes' => ['30 gun vadeli']])->toArray();
 
-        $this->assertSame(['30 gun vadeli'], $data['Notes']);
+        $this->assertSame(['30 gun vadeli'], $data['EInvoice']['Notes']);
     }
 
     // -------------------------------------------------------------------------
@@ -88,7 +89,7 @@ class SendInvoiceRequestTest extends TestCase
 
     public function test_invoice_info_has_correct_defaults(): void
     {
-        $info = $this->makeRequest()->toArray()['InvoiceInfo'];
+        $info = $this->makeRequest()->toArray()['EInvoice']['InvoiceInfo'];
 
         $this->assertSame(InvoiceType::Sales->value, $info['InvoiceType']);
         $this->assertSame(InvoiceProfile::Basic->value, $info['InvoiceProfile']);
@@ -99,14 +100,14 @@ class SendInvoiceRequestTest extends TestCase
     {
         $info = $this->makeRequest([
             'issueDate' => new \DateTimeImmutable('2026-05-14T10:00:00'),
-        ])->toArray()['InvoiceInfo'];
+        ])->toArray()['EInvoice']['InvoiceInfo'];
 
         $this->assertSame('2026-05-14T10:00:00Z', $info['IssueDate']);
     }
 
     public function test_invoice_info_omits_uuid_when_null(): void
     {
-        $info = $this->makeRequest()->toArray()['InvoiceInfo'];
+        $info = $this->makeRequest()->toArray()['EInvoice']['InvoiceInfo'];
 
         $this->assertArrayNotHasKey('UUID', $info);
     }
@@ -114,7 +115,7 @@ class SendInvoiceRequestTest extends TestCase
     public function test_invoice_info_includes_uuid_when_set(): void
     {
         $uuid = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
-        $info = $this->makeRequest(['uuid' => $uuid])->toArray()['InvoiceInfo'];
+        $info = $this->makeRequest(['uuid' => $uuid])->toArray()['EInvoice']['InvoiceInfo'];
 
         $this->assertSame($uuid, $info['UUID']);
     }
@@ -124,7 +125,7 @@ class SendInvoiceRequestTest extends TestCase
         $info = $this->makeRequest([
             'currencyCode' => 'USD',
             'exchangeRate' => 32.5,
-        ])->toArray()['InvoiceInfo'];
+        ])->toArray()['EInvoice']['InvoiceInfo'];
 
         $this->assertSame('USD', $info['CurrencyCode']);
         $this->assertSame(32.5, $info['ExchangeRate']);
@@ -136,7 +137,7 @@ class SendInvoiceRequestTest extends TestCase
 
     public function test_invoice_lines_are_mapped_to_array(): void
     {
-        $data = $this->makeRequest()->toArray();
+        $data = $this->makeRequest()->toArray()['EInvoice'];
 
         $this->assertCount(1, $data['InvoiceLines']);
         $this->assertSame('Urun', $data['InvoiceLines'][0]['Name']);
@@ -145,7 +146,7 @@ class SendInvoiceRequestTest extends TestCase
     public function test_multiple_lines_are_included(): void
     {
         $line2 = InvoiceLineRequest::make('Hizmet', 2, UnitType::Piece, 500, 10);
-        $data  = $this->makeRequest(['invoiceLines' => [$this->line, $line2]])->toArray();
+        $data  = $this->makeRequest(['invoiceLines' => [$this->line, $line2]])->toArray()['EInvoice'];
 
         $this->assertCount(2, $data['InvoiceLines']);
     }
