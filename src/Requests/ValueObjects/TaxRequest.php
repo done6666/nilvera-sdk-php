@@ -7,38 +7,53 @@ namespace Nilvera\Requests\ValueObjects;
 use Nilvera\Requests\AbstractRequest;
 
 /**
- * KDV dışındaki ek vergileri (ÖTV, Damga Vergisi vb.) temsil eder.
+ * Fatura kalemindeki ek vergiyi (KDV haricindeki vergiler) temsil eder — API'deki TaxDto.
  *
- * Her fatura satırında birden fazla ek vergi bulunabilir.
+ * - TaxCode   : Zorunlu. Vergi veya tevkifat kodu (örn: "9015" KDV tevkifatı için).
+ * - Total     : Vergi tutarı (vergi türüne göre zorunlu olabilir).
+ * - Percent   : Vergi oranı (vergi türüne göre zorunlu olabilir).
+ * - ReasonCode: Tevkifat vergilerinde ZORUNLU.
+ * - ReasonDesc: Tevkifat vergilerinde ZORUNLU.
+ *
+ * Örnek (KDV tevkifatı):
+ *   new TaxRequest(taxCode: '9015', total: 1.72, percent: 40.0,
+ *                  reasonCode: '601', reasonDesc: 'Yapım İşleri...')
  */
 readonly class TaxRequest extends AbstractRequest
 {
     public function __construct(
-        /** Vergi adı (örn: "Özel Tüketim Vergisi") */
-        public string $taxName,
-        /** Vergi oranı (yüzde olarak, örn: 25.0) */
-        public float $taxRate,
-        /** Hesaplanmış vergi tutarı */
-        public float $taxAmount,
-        /** GİB vergi kodu (örn: "0015" ÖTV için) */
-        public ?string $taxCode = null,
+        public string $taxCode,
+        public ?float $total = null,
+        public ?float $percent = null,
+        public ?string $reasonCode = null,
+        public ?string $reasonDesc = null,
     ) {
-        if ($this->taxRate < 0.0) {
-            throw new \InvalidArgumentException('Vergi oranı (taxRate) negatif olamaz.');
+        if (trim($this->taxCode) === '') {
+            throw new \InvalidArgumentException('TaxCode boş olamaz.');
         }
 
-        if ($this->taxAmount < 0.0) {
-            throw new \InvalidArgumentException('Vergi tutarı (taxAmount) negatif olamaz.');
+        if ($this->total !== null && $this->total < 0.0) {
+            throw new \InvalidArgumentException('Vergi tutarı (Total) negatif olamaz.');
+        }
+
+        if ($this->percent !== null && $this->percent < 0.0) {
+            throw new \InvalidArgumentException('Vergi oranı (Percent) negatif olamaz.');
+        }
+
+        // Tevkifat kodları (9015 vb.) ReasonCode+ReasonDesc gerektirir
+        if (($this->reasonCode !== null) !== ($this->reasonDesc !== null)) {
+            throw new \InvalidArgumentException('ReasonCode ve ReasonDesc birlikte girilmelidir.');
         }
     }
 
     public function toArray(): array
     {
         return $this->filterNulls([
-            'TaxName'   => $this->taxName,
-            'TaxRate'   => $this->taxRate,
-            'TaxAmount' => $this->taxAmount,
-            'TaxCode'   => $this->taxCode,
+            'TaxCode'    => $this->taxCode,
+            'Total'      => $this->total,
+            'Percent'    => $this->percent,
+            'ReasonCode' => $this->reasonCode,
+            'ReasonDesc' => $this->reasonDesc,
         ]);
     }
 }

@@ -7,35 +7,43 @@ namespace Nilvera\Requests\ValueObjects;
 use Nilvera\Requests\AbstractRequest;
 
 /**
- * Fatura alıcısının (vergi mükellefi veya bireysel kişi) bilgilerini taşır.
+ * Fatura alıcısı (CustomerInfo) bilgilerini taşır.
  *
- * - VKN  : 10 haneli vergi kimlik numarası (tüzel kişi)
- * - TCKN : 11 haneli TC kimlik numarası (gerçek kişi)
+ * Alan adları Nilvera API dokümantasyonundaki CustomerInfo nesnesine birebir uygundur.
+ *
+ * Zorunluluk notu:
+ *  - TaxOffice: e-Fatura'da zorunlu, e-Arşiv'de seçimli
+ *  - District  : her iki belge türünde zorunlu
+ *  - İhracat faturalarında CustomerInfo yerine ExportCustomerInfo kullanılmalıdır
  */
 readonly class ReceiverRequest extends AbstractRequest
 {
+    /**
+     * @param array<array{ID: string, IDType: string}> $partyIdentifications      Diğer resmi kimlik bilgileri
+     * @param array<array{ID: string, IDType: string}> $agentPartyIdentifications Aracı kuruma ait kimlik bilgileri
+     */
     public function __construct(
-        /** 10 haneli VKN veya 11 haneli TCKN */
+        /** Alıcının Vergi/T.C. Kimlik Numarası (10 haneli VKN veya 11 haneli TCKN) */
         public string $taxNumber,
-        /** Unvan (şirket adı) veya ad-soyad birleşimi */
-        public string $title,
+        /** Alıcının ünvanı veya adı soyadı */
+        public string $name,
         /** Açık adres */
         public string $address,
-        /** İl */
+        /** İlçe (zorunlu) */
+        public string $district,
+        /** Şehir */
         public string $city,
+        /** Ülke kodu (varsayılan: TR) */
         public string $country = 'TR',
-        /** Vergi dairesi (tüzel kişiler için zorunlu) */
+        /** Vergi dairesi — e-Fatura'da zorunlu, e-Arşiv'de seçimli */
         public ?string $taxOffice = null,
-        /** İlçe */
-        public ?string $district = null,
         public ?string $postalCode = null,
-        public ?string $email = null,
         public ?string $phone = null,
-        /** Bireysel alıcılarda ad */
-        public ?string $name = null,
-        /** Bireysel alıcılarda soyad */
-        public ?string $surname = null,
-        public ?string $website = null,
+        public ?string $fax = null,
+        public ?string $mail = null,
+        public ?string $webSite = null,
+        public array $partyIdentifications = [],
+        public array $agentPartyIdentifications = [],
     ) {
         $this->validateTaxNumber();
         $this->validateRequiredStrings();
@@ -51,42 +59,45 @@ readonly class ReceiverRequest extends AbstractRequest
 
         if ($len !== 10 && $len !== 11) {
             throw new \InvalidArgumentException(
-                "TaxNumber 10 (VKN) veya 11 (TCKN) haneli olmalıdır; {$len} hane girildi."
+                "TaxNumber 10 haneli VKN veya 11 haneli TCKN olmalıdır; {$len} hane girildi."
             );
         }
     }
 
     private function validateRequiredStrings(): void
     {
-        if (trim($this->title) === '') {
-            throw new \InvalidArgumentException('Alıcı unvanı (title) boş olamaz.');
-        }
-
-        if (trim($this->address) === '') {
-            throw new \InvalidArgumentException('Alıcı adresi boş olamaz.');
-        }
-
-        if (trim($this->city) === '') {
-            throw new \InvalidArgumentException('Alıcı ili (city) boş olamaz.');
+        foreach (['name' => 'Name', 'address' => 'Address', 'district' => 'District', 'city' => 'City'] as $prop => $label) {
+            if (trim($this->$prop) === '') {
+                throw new \InvalidArgumentException("{$label} alanı boş olamaz.");
+            }
         }
     }
 
     public function toArray(): array
     {
-        return $this->filterNulls([
+        $data = $this->filterNulls([
             'TaxNumber'  => $this->taxNumber,
-            'Title'      => $this->title,
+            'Name'       => $this->name,
             'TaxOffice'  => $this->taxOffice,
             'Address'    => $this->address,
-            'City'       => $this->city,
             'District'   => $this->district,
-            'PostalCode' => $this->postalCode,
+            'City'       => $this->city,
             'Country'    => $this->country,
-            'Email'      => $this->email,
+            'PostalCode' => $this->postalCode,
             'Phone'      => $this->phone,
-            'Name'       => $this->name,
-            'Surname'    => $this->surname,
-            'Website'    => $this->website,
+            'Fax'        => $this->fax,
+            'Mail'       => $this->mail,
+            'WebSite'    => $this->webSite,
         ]);
+
+        if ($this->partyIdentifications !== []) {
+            $data['PartyIdentifications'] = $this->partyIdentifications;
+        }
+
+        if ($this->agentPartyIdentifications !== []) {
+            $data['AgentPartyIdentifications'] = $this->agentPartyIdentifications;
+        }
+
+        return $data;
     }
 }

@@ -10,132 +10,89 @@ use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
 /**
- * e-Arşiv fatura gönderme isteği — POST /earchive/Send/Model
+ * e-Arsiv fatura gonderme istegi — POST /earchive/Send/Model
  *
- * e-Arşiv faturalar GİB sistemine değil, doğrudan alıcıya iletilir.
- * Bu nedenle ReceiverAlias zorunlu değildir ve bireysel (B2C) alıcılar desteklenir.
+ * e-Arsiv faturalar GIB sistemine degil dogrudan aliciya iletilir;
+ * bu nedenle CustomerAlias zorunlu degildir.
+ * InvoiceProfile her zaman InvoiceProfile::EArchive (EARSIVFATURA) olmalidir.
  *
- * Kullanım örneği:
- * ```php
- * $invoice = new SendArchiveInvoiceRequest(
- *     receiver: new ReceiverRequest(
- *         taxNumber: '12345678901',   // TCKN (bireysel)
- *         title:     'Ahmet Yılmaz',
- *         address:   'Bağcılar Mah. No:5',
- *         city:      'İstanbul',
- *     ),
- *     lines: [
- *         InvoiceLineRequest::make('Web Tasarım', 1, UnitType::Piece, 5000, 20),
- *     ],
- *     invoiceDate:  new \DateTimeImmutable('2026-05-14'),
- *     isInternetSale: true,
- * );
- * ```
+ * JSON ciktisi yapisi:
+ * {
+ *   "InvoiceInfo":   { ... },
+ *   "CustomerInfo":  { ... },
+ *   "InvoiceLines":  [ ... ],
+ *   "Notes":         [ "..." ]
+ * }
  */
 readonly class SendArchiveInvoiceRequest extends AbstractRequest
 {
     /**
-     * @param InvoiceLineRequest[] $lines
-     * @param string[]             $notes
+     * @param InvoiceLineRequest[]                        $invoiceLines En az bir kalem zorunludur
+     * @param string[]                                    $notes
+     * @param array<array{IssueDate:string,Value:string}> $orderReference
+     * @param array<array{IssueDate:string,Value:string}> $despatchDocumentReference
      */
     public function __construct(
-        public ReceiverRequest $receiver,
-        public array $lines,
-        public \DateTimeImmutable $invoiceDate,
-        public InvoiceProfile $invoiceProfile = InvoiceProfile::Basic,
+        public ReceiverRequest $customerInfo,
+        public array $invoiceLines,
+        public \DateTimeImmutable $issueDate,
         public InvoiceType $invoiceType = InvoiceType::Sales,
-        public string $currency = 'TRY',
-        public float $currencyRate = 1.0,
+        public string $currencyCode = 'TRY',
+        public ?float $exchangeRate = null,
         public array $notes = [],
-        public ?\DateTimeImmutable $invoiceTime = null,
-        /** İnternet üzerinden yapılan satışlarda true */
-        public bool $isInternetSale = false,
-        public ?string $orderNumber = null,
-        public ?string $orderDate = null,
+        public ?string $invoiceSerieOrNumber = null,
         public ?string $uuid = null,
-        public ?string $series = null,
+        public ?string $templateUuid = null,
+        public ?string $templateBase64String = null,
+        public array $orderReference = [],
+        public array $despatchDocumentReference = [],
     ) {
-        if ($this->lines === []) {
-            throw new \InvalidArgumentException('Faturada en az bir kalem (line) bulunmalıdır.');
+        if ($this->invoiceLines === []) {
+            throw new \InvalidArgumentException('Faturada en az bir kalem (InvoiceLines) bulunmalidir.');
         }
 
-        foreach ($this->lines as $i => $line) {
+        foreach ($this->invoiceLines as $i => $line) {
             if (!$line instanceof InvoiceLineRequest) {
                 throw new \InvalidArgumentException(
-                    "lines[{$i}] bir InvoiceLineRequest nesnesi olmalıdır."
+                    "invoiceLines[{$i}] bir InvoiceLineRequest nesnesi olmalidir."
                 );
             }
         }
 
-        if ($this->currencyRate <= 0.0) {
-            throw new \InvalidArgumentException('Döviz kuru (currencyRate) sıfırdan büyük olmalıdır.');
+        if ($this->exchangeRate !== null && $this->exchangeRate <= 0.0) {
+            throw new \InvalidArgumentException('Doviz kuru (ExchangeRate) sifirdan buyuk olmalidir.');
         }
-    }
-
-    public function subTotal(): float
-    {
-        return round(
-            array_sum(array_map(static fn (InvoiceLineRequest $l) => $l->lineTotal, $this->lines)),
-            2,
-        );
-    }
-
-    public function totalVat(): float
-    {
-        return round(
-            array_sum(array_map(static fn (InvoiceLineRequest $l) => $l->vatAmount, $this->lines)),
-            2,
-        );
-    }
-
-    public function grandTotal(): float
-    {
-        return round($this->subTotal() + $this->totalVat(), 2);
     }
 
     public function toArray(): array
     {
-        $data = [
-            'InvoiceProfile' => $this->invoiceProfile->value,
-            'InvoiceType'    => $this->invoiceType->value,
-            'InvoiceDate'    => $this->invoiceDate->format('Y-m-d'),
-            'Currency'       => $this->currency,
-            'CurrencyRate'   => $this->currencyRate,
-            'IsInternetSale' => $this->isInternetSale,
-            'Receiver'       => $this->receiver->toArray(),
-            'Lines'          => array_map(
+        $invoiceInfo = $this->filterNulls([
+            'UUID'                      => $this->uuid,
+            'TemplateUUID'              => $this->templateUuid,
+            'TemplateBase64String'      => $this->templateBase64String,
+            'InvoiceType'               => $this->invoiceType->value,
+            'InvoiceProfile'            => InvoiceProfile::EArchive->value,
+            'InvoiceSerieOrNumber'      => $this->invoiceSerieOrNumber,
+            'IssueDate'                 => $this->issueDate->format('Y-m-d\TH:i:s\Z'),
+            'CurrencyCode'              => $this->currencyCode,
+            'ExchangeRate'              => $this->exchangeRate,
+            'OrderReference'            => $this->orderReference !== [] ? $this->orderReference : null,
+            'DespatchDocumentReference' => $this->despatchDocumentReference !== [] ? $this->despatchDocumentReference : null,
+        ]);
+
+        $payload = [
+            'InvoiceInfo'  => $invoiceInfo,
+            'CustomerInfo' => $this->customerInfo->toArray(),
+            'InvoiceLines' => array_map(
                 static fn (InvoiceLineRequest $l) => $l->toArray(),
-                $this->lines,
+                $this->invoiceLines,
             ),
-            'SubTotal'   => $this->subTotal(),
-            'TotalVAT'   => $this->totalVat(),
-            'GrandTotal' => $this->grandTotal(),
         ];
 
-        if ($this->uuid !== null) {
-            $data['UUID'] = $this->uuid;
-        }
-
-        if ($this->invoiceTime !== null) {
-            $data['InvoiceTime'] = $this->invoiceTime->format('H:i:s');
-        }
-
         if ($this->notes !== []) {
-            $data['Notes'] = $this->notes;
+            $payload['Notes'] = $this->notes;
         }
 
-        if ($this->orderNumber !== null) {
-            $data['OrderNumber'] = $this->orderNumber;
-        }
-
-        if ($this->orderDate !== null) {
-            $data['OrderDate'] = $this->orderDate;
-        }
-
-        if ($this->series !== null) {
-            $data['Series'] = $this->series;
-        }
-
-        return $data;
+        return $payload;
     }
 }

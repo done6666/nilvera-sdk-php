@@ -8,136 +8,179 @@ use Nilvera\Enums\UnitType;
 use Nilvera\Requests\AbstractRequest;
 
 /**
- * Fatura kalemini (satırını) temsil eder.
+ * Fatura kalemi — API'deki EInvoiceLineDto.
  *
- * Doğrudan constructor ile tüm alanları geçirebilir veya
- * {@see self::make()} fabrika metodunu kullanarak KDV tutarı ve
- * satır toplamını otomatik hesaplatabilirsiniz.
+ * Alan adlari Nilvera API dokumantasyonuna (InvoiceLines sayfasi) birebir uygundur.
+ *
+ * Hizli kullanim icin {@see self::make()} fabrika metodunu kullanabilirsiniz;
+ * bu metot KDVTotal degerini Price, Quantity, AllowanceTotal ve KDVPercent'ten
+ * otomatik hesaplar.
+ *
+ * Ornek:
+ *   InvoiceLineRequest::make('Yazilim Lisansi', 1, UnitType::Piece, 10000, 20)
  */
 readonly class InvoiceLineRequest extends AbstractRequest
 {
     /**
-     * @param TaxRequest[]     $additionalTaxes KDV dışı ek vergiler (ÖTV, Damga vb.)
+     * @param TaxRequest[]          $taxes        KDV disindaki ek vergiler (OTV, Damga vb.)
+     * @param DeliveryInfoRequest|null $deliveryInfo Yalnizca IHRACAT faturalarinda doldurulur
      */
     public function __construct(
+        /** Urun/hizmet adi */
         public string $name,
+        /** Miktar */
         public float $quantity,
-        public UnitType $unit,
-        public float $unitPrice,
-        /** KDV oranı (yüzde, örn: 20.0) */
-        public float $vatRate,
-        /** Hesaplanmış KDV tutarı */
-        public float $vatAmount,
-        /** İskonto sonrası satır toplamı (KDV hariç) */
-        public float $lineTotal,
-        public ?DiscountRequest $discount = null,
-        public array $additionalTaxes = [],
-        /** Mal/hizmet açıklaması */
+        /** Birim tipi — UnitType enum veya ham kod (orn: 'C62') */
+        public UnitType|string $unitType,
+        /** Birim fiyat (API'ye string olarak gonderilir) */
+        public float $price,
+        /** Iskonto tutari; iskonto yoksa 0.0 girin */
+        public float $allowanceTotal,
+        /** KDV orani: 0, 1, 10 veya 20 */
+        public float $kdvPercent,
+        /** Toplam KDV tutari */
+        public float $kdvTotal,
+        public array $taxes = [],
+        public ?string $index = null,
+        public ?string $sellerCode = null,
+        public ?string $buyerCode = null,
         public ?string $description = null,
-        /** Ürün / stok kodu */
-        public ?string $productCode = null,
-        /** GTIP kodu (ihracat faturalarında kullanılır) */
-        public ?string $gtip = null,
+        public ?string $manufacturerCode = null,
+        public ?string $brandName = null,
+        public ?string $modelName = null,
+        public ?string $note = null,
+        public ?string $additionalInfoId = null,
+        public ?string $serialId = null,
+        public ?string $productTraceId = null,
+        public ?string $labelNumber = null,
+        public ?string $buyerDibLineCode = null,
+        public ?string $sellerDibLineCode = null,
+        public ?string $gtipNo = null,
+        public ?string $ozelMatrahReason = null,
+        public ?float $ozelMatrahTotal = null,
+        public ?float $vatAmountWithoutTevkifat = null,
+        public ?DeliveryInfoRequest $deliveryInfo = null,
     ) {
+        if (trim($this->name) === '') {
+            throw new \InvalidArgumentException('Urun adi (Name) bos olamaz.');
+        }
         if ($this->quantity <= 0.0) {
-            throw new \InvalidArgumentException('Miktar (quantity) sıfırdan büyük olmalıdır.');
+            throw new \InvalidArgumentException('Miktar (Quantity) sifirdan buyuk olmalidir.');
         }
-
-        if ($this->unitPrice < 0.0) {
-            throw new \InvalidArgumentException('Birim fiyat (unitPrice) negatif olamaz.');
+        if ($this->price < 0.0) {
+            throw new \InvalidArgumentException('Birim fiyat (Price) negatif olamaz.');
         }
-
-        if ($this->vatRate < 0.0) {
-            throw new \InvalidArgumentException('KDV oranı (vatRate) negatif olamaz.');
+        if ($this->allowanceTotal < 0.0) {
+            throw new \InvalidArgumentException('Iskonto tutari (AllowanceTotal) negatif olamaz.');
         }
-
-        if ($this->vatAmount < 0.0) {
-            throw new \InvalidArgumentException('KDV tutarı (vatAmount) negatif olamaz.');
+        if (!in_array($this->kdvPercent, [0.0, 1.0, 10.0, 20.0], true)) {
+            throw new \InvalidArgumentException(
+                'KDV orani (KDVPercent) 0, 1, 10 veya 20 olmalidir; ' . $this->kdvPercent . ' gecersiz.'
+            );
         }
-
-        if ($this->lineTotal < 0.0) {
-            throw new \InvalidArgumentException('Satır toplamı (lineTotal) negatif olamaz.');
+        if ($this->kdvTotal < 0.0) {
+            throw new \InvalidArgumentException('KDV tutari (KDVTotal) negatif olamaz.');
         }
-
-        foreach ($this->additionalTaxes as $i => $tax) {
+        foreach ($this->taxes as $i => $tax) {
             if (!$tax instanceof TaxRequest) {
-                throw new \InvalidArgumentException(
-                    "additionalTaxes[{$i}] bir TaxRequest nesnesi olmalıdır."
-                );
+                throw new \InvalidArgumentException("taxes[{$i}] bir TaxRequest nesnesi olmalidir.");
             }
         }
     }
 
     /**
-     * KDV tutarını ve satır toplamını otomatik hesaplayarak bir kalem oluşturur.
+     * KDVTotal'i otomatik hesaplayarak bir fatura kalemi olusturur.
      *
-     * @param TaxRequest[] $additionalTaxes
+     * AllowanceTotal (iskonto) icin:
+     *  - Tutar girmek: $allowanceTotal parametresini kullanin
+     *  - Yuzde girmek: $allowancePercent parametresini kullanin (AllowanceTotal'i hesaplar)
+     *
+     * @param TaxRequest[] $taxes
      */
     public static function make(
         string $name,
         float $quantity,
-        UnitType $unit,
-        float $unitPrice,
-        float $vatRate,
-        ?DiscountRequest $discount = null,
-        array $additionalTaxes = [],
+        UnitType|string $unitType,
+        float $price,
+        float $kdvPercent,
+        float $allowanceTotal = 0.0,
+        float $allowancePercent = 0.0,
+        array $taxes = [],
+        ?string $index = null,
+        ?string $sellerCode = null,
+        ?string $buyerCode = null,
         ?string $description = null,
-        ?string $productCode = null,
-        ?string $gtip = null,
+        ?string $gtipNo = null,
+        ?DeliveryInfoRequest $deliveryInfo = null,
     ): self {
-        $discountAmount = $discount?->amount ?? 0.0;
-        $lineTotal      = round(($quantity * $unitPrice) - $discountAmount, 2);
-        $vatAmount      = round($lineTotal * ($vatRate / 100), 2);
+        if ($allowancePercent > 0.0) {
+            $allowanceTotal = round($quantity * $price * ($allowancePercent / 100), 2);
+        }
+
+        $lineBase = round(($quantity * $price) - $allowanceTotal, 2);
+        $kdvTotal = round($lineBase * ($kdvPercent / 100), 2);
 
         return new self(
             name: $name,
             quantity: $quantity,
-            unit: $unit,
-            unitPrice: $unitPrice,
-            vatRate: $vatRate,
-            vatAmount: $vatAmount,
-            lineTotal: $lineTotal,
-            discount: $discount,
-            additionalTaxes: $additionalTaxes,
+            unitType: $unitType,
+            price: $price,
+            allowanceTotal: $allowanceTotal,
+            kdvPercent: $kdvPercent,
+            kdvTotal: $kdvTotal,
+            taxes: $taxes,
+            index: $index,
+            sellerCode: $sellerCode,
+            buyerCode: $buyerCode,
             description: $description,
-            productCode: $productCode,
-            gtip: $gtip,
+            gtipNo: $gtipNo,
+            deliveryInfo: $deliveryInfo,
         );
     }
 
     public function toArray(): array
     {
-        $data = [
-            'Name'      => $this->name,
-            'Quantity'  => $this->quantity,
-            'Unit'      => $this->unit->value,
-            'UnitPrice' => $this->unitPrice,
-            'VATRate'   => $this->vatRate,
-            'VATAmount' => $this->vatAmount,
-            'LineTotal' => $this->lineTotal,
-        ];
+        $unitValue = $this->unitType instanceof UnitType
+            ? $this->unitType->value
+            : $this->unitType;
 
-        if ($this->discount !== null) {
-            $data['Discount'] = $this->discount->toArray();
-        }
+        $data = $this->filterNulls([
+            'Index'           => $this->index,
+            'SellerCode'      => $this->sellerCode,
+            'BuyerCode'       => $this->buyerCode,
+            'Name'            => $this->name,
+            'Description'     => $this->description,
+            'Quantity'        => $this->quantity,
+            'UnitType'        => $unitValue,
+            'Price'           => (string) $this->price,
+            'AllowanceTotal'  => $this->allowanceTotal,
+            'KDVPercent'      => $this->kdvPercent,
+            'KDVTotal'        => $this->kdvTotal,
+            'ManufacturerCode'          => $this->manufacturerCode,
+            'BrandName'                 => $this->brandName,
+            'ModelName'                 => $this->modelName,
+            'Note'                      => $this->note,
+            'AdditionalInfoId'          => $this->additionalInfoId,
+            'SerialID'                  => $this->serialId,
+            'ProductTraceID'            => $this->productTraceId,
+            'LabelNumber'               => $this->labelNumber,
+            'BuyerDIBLineCode'          => $this->buyerDibLineCode,
+            'SellerDIBLineCode'         => $this->sellerDibLineCode,
+            'GTIPNo'                    => $this->gtipNo,
+            'OzelMatrahReason'          => $this->ozelMatrahReason,
+            'OzelMatrahTotal'           => $this->ozelMatrahTotal,
+            'VatAmountWithoutTevkifat'  => $this->vatAmountWithoutTevkifat,
+        ]);
 
-        if ($this->additionalTaxes !== []) {
-            $data['AdditionalTaxes'] = array_map(
+        if ($this->taxes !== []) {
+            $data['Taxes'] = array_map(
                 static fn (TaxRequest $t) => $t->toArray(),
-                $this->additionalTaxes,
+                $this->taxes,
             );
         }
 
-        if ($this->description !== null) {
-            $data['Description'] = $this->description;
-        }
-
-        if ($this->productCode !== null) {
-            $data['ProductCode'] = $this->productCode;
-        }
-
-        if ($this->gtip !== null) {
-            $data['GTIP'] = $this->gtip;
+        if ($this->deliveryInfo !== null) {
+            $data['DeliveryInfo'] = $this->deliveryInfo->toArray();
         }
 
         return $data;
