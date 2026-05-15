@@ -3,116 +3,164 @@
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-blue)](https://www.php.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-PHP SDK for the [Nilvera](https://www.nilvera.com) e-document API. Supports e-Invoice, e-Archive, e-Waybill, e-SMM, e-MM, e-SKGB, e-Adisyon, e-Saklama and e-Defter services.
+[Nilvera](https://www.nilvera.com) e-belge API'si için PHP SDK. E-Fatura, E-Arşiv, E-İrsaliye, E-SMM, E-MM, E-SKGB, E-Adisyon, E-Saklama ve E-Defter servislerini destekler.
 
-## Requirements
+## İçindekiler
+
+- [Gereksinimler](#gereksinimler)
+- [Kurulum](#kurulum)
+- [Hızlı Başlangıç](#hızlı-başlangıç)
+- [Servisler](#servisler)
+- [E-Fatura (eInvoice)](#e-fatura-einvoice)
+  - [InvoiceBuilder ile Fluent API](#invoicebuilder-ile-fluent-api)
+  - [E-Fatura Gönderme](#e-fatura-gönderme)
+  - [Gelen Faturalar](#gelen-faturalar)
+  - [Taslak Faturalar](#taslak-faturalar)
+  - [XML / Base64 ile Gönderme](#xml--base64-ile-gönderme)
+  - [Önizleme ve PDF İndirme](#önizleme-ve-pdf-i̇ndirme)
+  - [İletişim Kanalları](#i̇letişim-kanalları)
+  - [Seri & Şablon Yönetimi](#seri--şablon-yönetimi)
+  - [İstatistikler](#i̇statistikler)
+- [E-Arşiv (eArchive)](#e-arşiv-earchive)
+- [E-İrsaliye (eWaybill)](#e-i̇rsaliye-ewaybill)
+- [E-SMM (eSelfEmployed)](#e-smm-eselfemployed)
+- [E-MM (eProducerReceipt)](#e-mm-eproducerreceipt)
+- [Genel (general)](#genel-general)
+- [Hata Yönetimi](#hata-yönetimi)
+- [İstek Sınıfları](#i̇stek-sınıfları)
+- [Enum Referansı](#enum-referansı)
+- [Gelişmiş Yapılandırma](#gelişmiş-yapılandırma)
+- [Test](#test)
+
+---
+
+## Gereksinimler
 
 - PHP 8.1+
 - Guzzle 7.5+
 
-## Installation
+## Kurulum
 
 ```bash
 composer require done6666/nilvera-sdk-php
 ```
 
-## Quick Start
+## Hızlı Başlangıç
 
 ```php
 use Nilvera\NilveraClient;
 
-// Production
+// Canlı ortam
 $client = NilveraClient::live('your-api-key');
 
-// Test / sandbox
+// Test / sandbox ortamı
 $client = NilveraClient::test('your-test-api-key');
 ```
 
-## Services
+---
 
-| Method | Service | API |
+## Servisler
+
+| Erişim | Servis | Kapsam |
 |---|---|---|
-| `$client->general()` | General | Company, taxpayer, customer, stock |
-| `$client->eInvoice()` | E-Fatura | Outgoing/incoming e-invoices, drafts, series, templates |
-| `$client->eArchive()` | E-Arşiv | E-archive invoices, reports, series, templates |
-| `$client->eWaybill()` | E-İrsaliye | E-waybills, acceptance/rejection |
-| `$client->eSelfEmployed()` | E-SMM | Self-employed professional receipts |
-| `$client->eProducerReceipt()` | E-MM | Producer receipts |
-| `$client->eInsurance()` | E-SKGB | Insurance commission expense docs |
-| `$client->eReceipt()` | E-Adisyon | Electronic bills/receipts |
-| `$client->eStorage()` | E-Saklama | Document storage |
-| `$client->eLedger()` | E-Defter | Electronic ledger |
-| `$client->report()` | Rapor | Reports |
+| `$client->general()` | Genel | Şirket, mükellef, müşteri, stok |
+| `$client->eInvoice()` | E-Fatura | Giden/gelen fatura, taslak, seri, şablon |
+| `$client->eArchive()` | E-Arşiv | E-arşiv faturası, rapor, seri, şablon |
+| `$client->eWaybill()` | E-İrsaliye | İrsaliye gönderme, kabul/red |
+| `$client->eSelfEmployed()` | E-SMM | Serbest meslek makbuzu |
+| `$client->eProducerReceipt()` | E-MM | Müstahsil makbuzu |
+| `$client->eInsurance()` | E-SKGB | Sigorta komisyon gider belgesi |
+| `$client->eReceipt()` | E-Adisyon | Elektronik adisyon |
+| `$client->eStorage()` | E-Saklama | Belge saklama |
+| `$client->eLedger()` | E-Defter | Elektronik defter |
+| `$client->report()` | Rapor | Raporlar |
 
-## Usage Examples
+---
 
-### Send an e-Invoice
+## E-Fatura (eInvoice)
+
+### InvoiceBuilder ile Fluent API
+
+`InvoiceBuilder` zincirleme (fluent) sözdizimi sunarak fatura oluşturmayı kolaylaştırır. KDV toplamları otomatik hesaplanır.
 
 ```php
+use Nilvera\Builders\InvoiceBuilder;
 use Nilvera\Enums\InvoiceProfile;
 use Nilvera\Enums\InvoiceType;
 use Nilvera\Enums\UnitType;
-use Nilvera\Requests\SendInvoiceRequest;
-use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
-$request = new SendInvoiceRequest(
-    customerInfo: new ReceiverRequest(
-        taxNumber: '1234567890',
-        name:      'Customer Co.',
-        address:   'Atatürk Cad. No:1',
-        district:  'Kadıköy',
-        city:      'İstanbul',
-        taxOffice: 'Kadıköy',
-    ),
-    invoiceLines: [
-        InvoiceLineRequest::make(
-            name:       'Product A',
-            quantity:   2,
-            unitType:   UnitType::Piece,
-            price:      100.00,
-            kdvPercent: 20,
-        ),
-    ],
-    issueDate:      new DateTimeImmutable('2024-01-15T10:00:00'),
-    invoiceProfile: InvoiceProfile::Basic,
-    invoiceType:    InvoiceType::Sales,
-    // customerAlias: 'urn:mail:muhasebe@customer.com', // for registered e-invoice recipients
+$receiver = new ReceiverRequest(
+    taxNumber: '1234567890',
+    name:      'Müşteri A.Ş.',
+    address:   'Atatürk Cad. No:1',
+    district:  'Kadıköy',
+    city:      'İstanbul',
+    taxOffice: 'Kadıköy',
 );
+
+$request = InvoiceBuilder::for($receiver)
+    ->issueDate(new DateTimeImmutable('2024-06-01'))
+    ->profile(InvoiceProfile::Basic)
+    ->type(InvoiceType::Sales)
+    ->alias('urn:mail:muhasebe@musteri.com.tr')  // GIB'de kayıtlı alıcı alias'ı
+    ->addLine('Yazılım Lisansı', 1, UnitType::Piece, 10_000, 20)
+    ->addLine('Yıllık Destek',  12, UnitType::Month,   500, 20)
+    ->note('Ödeme vadesi: 30 gün')
+    ->orderReference('2024-05-15', 'SIP-2024-001')
+    ->build();
 
 $response = $client->eInvoice()->send($request);
 
-echo $response->uuid;          // Invoice UUID
-echo $response->invoiceNumber; // e.g. "GIB2024000000001"
+echo $response->uuid;          // Fatura UUID
+echo $response->invoiceNumber; // örn. "GIB2024000000001"
 ```
 
-### InvoiceLineRequest — factory method
+### E-Fatura Gönderme
 
-`InvoiceLineRequest::make()` automatically calculates `KDVTotal` from price, quantity and KDV rate. Use `$allowancePercent` for percentage-based discounts:
+`InvoiceBuilder` yerine `SendInvoiceRequest` doğrudan da kullanılabilir:
 
 ```php
-// With discount percentage
-$line = InvoiceLineRequest::make(
-    name:             'Product B',
-    quantity:         10,
-    unitType:         UnitType::Piece,
-    price:            500.00,
-    kdvPercent:       10,
-    allowancePercent: 5,   // 5% discount, AllowanceTotal calculated automatically
+use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
+
+$request = new SendInvoiceRequest(
+    customerInfo:   $receiver,
+    invoiceLines:   [
+        // KDVTotal otomatik hesaplanır
+        InvoiceLineRequest::make('Ürün A', 2, UnitType::Piece, 100.00, 20),
+
+        // Yüzdesel iskonto ile
+        InvoiceLineRequest::make(
+            name:             'Ürün B',
+            quantity:         10,
+            unitType:         UnitType::Piece,
+            price:            500.00,
+            kdvPercent:       10,
+            allowancePercent: 5,   // %5 iskonto — AllowanceTotal otomatik hesaplanır
+        ),
+
+        // Sabit iskonto tutarı ile
+        InvoiceLineRequest::make(
+            name:           'Ürün C',
+            quantity:       1,
+            unitType:       UnitType::Piece,
+            price:          1000.00,
+            kdvPercent:     20,
+            allowanceTotal: 50.00,
+        ),
+    ],
+    issueDate:      new DateTimeImmutable('2024-06-01T10:00:00'),
+    invoiceProfile: InvoiceProfile::Basic,
+    invoiceType:    InvoiceType::Sales,
+    // GIB'de kayıtlı alıcılar için alias zorunludur
+    // customerAlias: 'urn:mail:muhasebe@musteri.com.tr',
 );
 
-// With fixed discount amount
-$line = InvoiceLineRequest::make(
-    name:          'Product C',
-    quantity:      1,
-    unitType:      UnitType::Piece,
-    price:         1000.00,
-    kdvPercent:    20,
-    allowanceTotal: 50.00,
-);
+$response = $client->eInvoice()->send($request);
 ```
 
-### List Outgoing Invoices
+### Giden Faturaları Listeleme ve Sorgulama
 
 ```php
 use Nilvera\Requests\ListInvoicesRequest;
@@ -125,25 +173,95 @@ $params = new ListInvoicesRequest(
 );
 
 $invoices = $client->eInvoice()->listSaleInvoices($params);
+
+// Fatura içeriği
+$html  = $client->eInvoice()->getSaleInvoiceHtml($uuid);
+$pdf   = $client->eInvoice()->getSaleInvoicePdf($uuid);  // binary
+$xml   = $client->eInvoice()->getSaleInvoiceXml($uuid);
+$model = $client->eInvoice()->getSaleInvoiceModel($uuid);
+
+// Durum ve zarf bilgisi
+$status       = $client->eInvoice()->getSaleInvoiceStatus($uuid);
+$envelopeInfo = $client->eInvoice()->getSaleInvoiceEnvelopeInfo($uuid);
+$histories    = $client->eInvoice()->getSaleInvoiceHistories($uuid);
+
+// İptal
+$client->eInvoice()->cancelSaleInvoice($uuid);
 ```
 
-### Get Invoice HTML / PDF / XML
+### Gelen Faturalar
 
 ```php
-$html = $client->eInvoice()->getSaleInvoiceHtml($uuid);
-$pdf  = $client->eInvoice()->getSaleInvoicePdf($uuid);  // binary
-$xml  = $client->eInvoice()->getSaleInvoiceXml($uuid);
+// Gelen faturaları listele
+$incoming = $client->eInvoice()->listPurchaseInvoices($params);
+
+// GIB'den yeni gelen faturaları senkronize et
+$client->eInvoice()->syncPurchaseFromGib();
+
+// Okundu işaretle
+$client->eInvoice()->markPurchaseInvoiceAsRead($uuid);
+
+// Gelen faturadan iade faturası oluştur
+$return = $client->eInvoice()->createReturnFromPurchaseInvoice($uuid);
+echo $return['UUID'];
 ```
 
-### Send Invoice via Email / SMS / WhatsApp
+### Taslak Faturalar
+
+```php
+// Taslak oluştur
+$draft = $client->eInvoice()->createDraft([...]);
+
+// Mevcut taslağı gönder
+$response = $client->eInvoice()->sendDraft($uuid);
+
+// Düzenle ve gönder
+$response = $client->eInvoice()->editAndSendDraft([...]);
+
+// Taslak içeriği
+$html = $client->eInvoice()->getDraftHtml($uuid);
+$pdf  = $client->eInvoice()->getDraftPdf($uuid);
+
+// Tek taslak sil
+$client->eInvoice()->deleteDraft($uuid);
+```
+
+### XML / Base64 ile Gönderme
+
+```php
+// Ham UBL XML gönder
+$result = $client->eInvoice()->sendXml($xmlContent);
+
+// Base64 kodlu XML gönder
+$result = $client->eInvoice()->sendBase64(base64_encode($xmlContent));
+
+echo $result['UUID'];
+echo $result['InvoiceNumber'];
+
+// UBL XML dosyası yükle
+$client->eInvoice()->upload([...]);
+```
+
+### Önizleme ve PDF İndirme
+
+```php
+// HTML önizleme (kaydetmeden)
+$preview = $client->eInvoice()->preview($request);
+
+// PDF binary olarak indir (kaydetmeden)
+$pdfBinary = $client->eInvoice()->downloadPdf($request);
+file_put_contents('fatura.pdf', $pdfBinary);
+```
+
+### İletişim Kanalları
 
 ```php
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendBySmsRequest;
 
-// Email
+// E-posta
 $client->eInvoice()->sendSaleInvoiceByEmail(
-    new SendByEmailRequest($uuid, ['customer@example.com', 'accounts@example.com'])
+    new SendByEmailRequest($uuid, ['musteri@example.com', 'muhasebe@example.com'])
 );
 
 // SMS
@@ -155,48 +273,42 @@ $client->eInvoice()->sendSaleInvoiceBySms(
 $client->eInvoice()->sendSaleInvoiceByWhatsapp(
     new SendBySmsRequest($uuid, ['+905001234567'])
 );
+
+// Gelen fatura için
+$client->eInvoice()->sendPurchaseInvoiceByEmail(new SendByEmailRequest($uuid, ['muhasebe@example.com']));
 ```
 
-### Send e-Invoice via XML or Base64
+### Seri & Şablon Yönetimi
 
 ```php
-// Send raw UBL XML
-$result = $client->eInvoice()->sendXml($xmlContent);
+// Seriler
+$series = $client->eInvoice()->listSeries();
+$client->eInvoice()->createSeries([...]);
 
-// Send base64-encoded XML
-$result = $client->eInvoice()->sendBase64(base64_encode($xmlContent));
-
-echo $result['UUID'];
-echo $result['InvoiceNumber'];
+// Şablonlar
+$templates = $client->eInvoice()->listTemplates();
+$template  = $client->eInvoice()->getTemplate($id);
+$client->eInvoice()->updateTemplate([...]);
+$preview   = $client->eInvoice()->previewTemplate($uuid);
+$client->eInvoice()->deleteTemplate($id);
 ```
 
-### Draft Invoices
+### İstatistikler
 
 ```php
-// Create a draft
-$draft = $client->eInvoice()->createDraft([...]);
-
-// Send an existing draft
-$response = $client->eInvoice()->sendDraft($uuid);
-
-// Delete a draft
-$client->eInvoice()->deleteDraft($uuid);
+$saleStats     = $client->eInvoice()->getSaleStatistics(['StartDate' => '2024-01-01', 'EndDate' => '2024-12-31']);
+$purchaseStats = $client->eInvoice()->getPurchaseStatistics(['StartDate' => '2024-01-01', 'EndDate' => '2024-12-31']);
 ```
 
-### Create Return Invoice from Incoming Invoice
+---
 
-```php
-$return = $client->eInvoice()->createReturnFromPurchaseInvoice($uuid);
-echo $return['UUID'];
-```
-
-### E-Archive Invoice
+## E-Arşiv (eArchive)
 
 ```php
 use Nilvera\Requests\SendArchiveInvoiceRequest;
 
 $request = new SendArchiveInvoiceRequest(
-    customerInfo:  new ReceiverRequest(
+    customerInfo: new ReceiverRequest(
         taxNumber: '9876543210',
         name:      'Bireysel Müşteri',
         address:   'Bağcılar Cad. No:5',
@@ -211,42 +323,177 @@ $request = new SendArchiveInvoiceRequest(
 
 $response = $client->eArchive()->send($request);
 
-// Cancel an issued e-archive invoice
+// İptal
 $client->eArchive()->cancelInvoice($uuid);
 
-// Submit e-archive report to GIB
+// GIB'e e-arşiv raporu bildir
 $client->eArchive()->sendReport();
+
+// Listeleme ve içerik
+$invoices = $client->eArchive()->listInvoices($params);
+$pdf      = $client->eArchive()->getInvoicePdf($uuid);
+$html     = $client->eArchive()->getInvoiceHtml($uuid);
+$xml      = $client->eArchive()->getInvoiceXml($uuid);
 ```
 
-### Check Taxpayer
+---
+
+## E-İrsaliye (eWaybill)
 
 ```php
-// Check by tax number
-$info = $client->general()->checkTaxpayer('1234567890');
+use Nilvera\Enums\DespatchProfile;
+use Nilvera\Enums\DespatchType;
+use Nilvera\Enums\UnitType;
+use Nilvera\Requests\SendWaybillRequest;
+use Nilvera\Requests\ValueObjects\DespatchLineRequest;
+use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
-// Search by company name
-$results = $client->general()->searchTaxpayers('Acme');
+$request = new SendWaybillRequest(
+    customerAlias: 'urn:mail:defaultpk@nilvera.com', // GIB'de kayıtlı alıcı alias'ı
+    customerInfo:  new ReceiverRequest(
+        taxNumber: '1234567890',
+        name:      'Alıcı Firma A.Ş.',
+        address:   'Sanayi Cad. No:10',
+        district:  'Gebze',
+        city:      'Kocaeli',
+        taxOffice: 'Gebze',
+    ),
+    despatchLines: [
+        new DespatchLineRequest(
+            name:              'Ürün A',
+            deliveredUnitType: UnitType::Piece,
+            deliveredQuantity: 100,
+            sellerCode:        'STK-001',
+            quantityPrice:     50.00,
+            lineTotal:         5000.00,
+        ),
+    ],
+    issueDate:      new DateTimeImmutable('2024-06-01T08:00:00'),
+    despatchType:   DespatchType::Sevk,
+    despatchProfile: DespatchProfile::TemelIrsaliye,
+);
 
-// Check by alias type (e-invoice vs e-despatch)
-$list = $client->general()->listTaxpayersByType('GB', 'Invoice');
+$response = $client->eWaybill()->send($request);
+echo $response->uuid;
+
+// Listeleme
+$waybills = $client->eWaybill()->listSaleWaybills($params);
+$html     = $client->eWaybill()->getSaleWaybillHtml($uuid);
+$pdf      = $client->eWaybill()->getSaleWaybillPdf($uuid);
+
+// Gelen irsaliye kabul/red
+$client->eWaybill()->acceptPurchaseWaybill($uuid);
+$client->eWaybill()->rejectPurchaseWaybill($uuid, 'Red gerekçesi');
 ```
 
-### Customer & Stock Management
+---
+
+## E-SMM (eSelfEmployed)
+
+Serbest meslek makbuzu gönderimi için `SendVoucherRequest` ve `VoucherLineRequest` kullanılır.
 
 ```php
-// Customers
+use Nilvera\Requests\SendVoucherRequest;
+use Nilvera\Requests\ValueObjects\VoucherLineRequest;
+use Nilvera\Requests\ValueObjects\ReceiverRequest;
+
+$request = new SendVoucherRequest(
+    customerInfo: new ReceiverRequest(
+        taxNumber: '1234567890',
+        name:      'İşveren A.Ş.',
+        address:   'Meclis-i Mebusan Cad. No:1',
+        district:  'Beyoğlu',
+        city:      'İstanbul',
+        taxOffice: 'Beyoğlu',
+    ),
+    voucherLines: [
+        new VoucherLineRequest(
+            name:                 'Danışmanlık Hizmeti',
+            grossWage:            10_000.00,
+            price:                10_000.00,
+            kdvPercent:           20,
+            kdvTotal:             2_000.00,
+            gvWithholdingPercent: 20,    // GV stopaj yüzdesi
+            gvWithholdingTotal:   2_000.00,
+        ),
+    ],
+    issueDate: new DateTimeImmutable('2024-06-01T09:00:00'),
+    sendType:  'ELEKTRONIK', // veya 'KAGIT'
+);
+
+$response = $client->eSelfEmployed()->send($request);
+
+// Listeleme ve içerik
+$vouchers = $client->eSelfEmployed()->listVouchers($params);
+$pdf      = $client->eSelfEmployed()->getVoucherPdf($uuid);
+```
+
+---
+
+## E-MM (eProducerReceipt)
+
+Müstahsil makbuzu gönderimi için `SendProducerReceiptRequest` ve `ProducerLineRequest` kullanılır.
+
+```php
+use Nilvera\Requests\SendProducerReceiptRequest;
+use Nilvera\Requests\ValueObjects\ProducerLineRequest;
+use Nilvera\Requests\ValueObjects\ReceiverRequest;
+
+$request = new SendProducerReceiptRequest(
+    customerInfo: new ReceiverRequest(
+        taxNumber: '12345678901',  // TC kimlik numarası
+        name:      'Ahmet Yılmaz',
+        address:   'Köy Mah. No:5',
+        district:  'Merkez',
+        city:      'Antalya',
+    ),
+    producerLines: [
+        new ProducerLineRequest(
+            name:                 'Domates',
+            quantity:             500,
+            unitType:             UnitType::Kilogram,
+            price:                8.50,
+            gvWithholdingPercent: 4,
+            gvWithholdingAmount:  170.00,
+        ),
+    ],
+    issueDate:    new DateTimeImmutable('2024-06-01T00:00:00'),
+    deliveryDate: new DateTimeImmutable('2024-06-01T00:00:00'),
+);
+
+$response = $client->eProducerReceipt()->send($request);
+```
+
+---
+
+## Genel (general)
+
+```php
+// Şirket bilgileri
+$company = $client->general()->getCompany();
+$client->general()->updateCompany([...]);
+$modules = $client->general()->getCompanyModules();
+
+// Mükellef sorgulama
+$info    = $client->general()->checkTaxpayer('1234567890');    // VKN ile
+$results = $client->general()->searchTaxpayers('Acme');         // Ad ile arama
+$list    = $client->general()->listTaxpayersByType('GB', 'Invoice'); // Alias tipine göre
+
+// Müşteri yönetimi
 $customers = $client->general()->listCustomers();
 $client->general()->createCustomer([...]);
 $client->general()->updateCustomer([...]);
 $client->general()->deleteCustomer($id);
 
-// Stocks
+// Stok yönetimi
 $stocks = $client->general()->listStocks();
 $client->general()->createStock([...]);
 $client->general()->deleteStock($id);
 ```
 
-## Error Handling
+---
+
+## Hata Yönetimi
 
 ```php
 use Nilvera\Exception\ApiException;
@@ -258,75 +505,209 @@ use Nilvera\Exception\ValidationException;
 try {
     $response = $client->eInvoice()->send($request);
 } catch (ValidationException $e) {
-    // HTTP 422 — business rule or field validation failure
-    $errors = $e->getErrors(); // ['FieldName' => ['error message']]
+    // HTTP 422 — iş kuralı veya alan doğrulama hatası
+    $errors = $e->getErrors(); // ['AlanAdı' => ['hata mesajı']]
+    foreach ($errors as $field => $messages) {
+        echo "{$field}: " . implode(', ', $messages) . PHP_EOL;
+    }
 } catch (AuthenticationException $e) {
-    // HTTP 401/403 — invalid or expired API key
+    // HTTP 401/403 — geçersiz veya süresi dolmuş API anahtarı
 } catch (NotFoundException $e) {
-    // HTTP 404 — record not found
+    // HTTP 404 — kayıt bulunamadı
 } catch (ConflictException $e) {
-    // HTTP 409 — duplicate request
+    // HTTP 409 — yinelenen istek (aynı UUID tekrar gönderildi)
 } catch (ApiException $e) {
-    // Any other API or connection error
+    // Diğer tüm API veya bağlantı hataları
     $statusCode = $e->getStatusCode();
     $body       = $e->getResponseBody();
 }
 ```
 
-## Request Classes
+---
 
-| Class | Used for |
+## İstek Sınıfları
+
+| Sınıf | Kullanım |
 |---|---|
-| `SendInvoiceRequest` | POST /einvoice/Send/Model |
-| `SendArchiveInvoiceRequest` | POST /earchive/Send/Model |
-| `ListInvoicesRequest` | GET listing endpoints (e-invoice, e-archive, etc.) |
-| `SendByEmailRequest` | Email delivery endpoints |
-| `SendBySmsRequest` | SMS / WhatsApp delivery endpoints |
-| `ReceiverRequest` | Customer info in invoice requests |
-| `InvoiceLineRequest` | Invoice line items (use `::make()` for auto KDV calc) |
+| `SendInvoiceRequest` | E-Fatura gönderme (POST /einvoice/Send/Model) |
+| `SendArchiveInvoiceRequest` | E-Arşiv fatura gönderme (POST /earchive/Send/Model) |
+| `SendWaybillRequest` | E-İrsaliye gönderme (POST /edespatch/Send/Model) |
+| `SendVoucherRequest` | E-SMM gönderme (POST /evoucher/Send/Model) |
+| `SendProducerReceiptRequest` | E-MM gönderme (POST /eproducer/Send/Model) |
+| `ListInvoicesRequest` | Listeleme endpoint'leri için sayfalama/filtre |
+| `SendByEmailRequest` | E-posta ile iletim |
+| `SendBySmsRequest` | SMS / WhatsApp ile iletim |
+| `CreateCustomerRequest` | Müşteri oluşturma |
 
-## Enums
+### Value Objects
+
+| Sınıf | Kullanım |
+|---|---|
+| `ReceiverRequest` | Fatura alıcı bilgisi |
+| `InvoiceLineRequest` | E-Fatura / E-Arşiv kalemi (`::make()` KDV'yi otomatik hesaplar) |
+| `DespatchLineRequest` | E-İrsaliye kalemi |
+| `VoucherLineRequest` | E-SMM kalemi |
+| `ProducerLineRequest` | E-MM kalemi |
+| `TaxRequest` | Ek vergi bilgisi |
+| `PaymentMeansRequest` | Ödeme yöntemi |
+| `PaymentTermsRequest` | Ödeme koşulları |
+| `ShipmentDetailRequest` | İrsaliye sevkiyat detayı |
+| `WaybillPartyRequest` | İrsaliye taraf bilgisi |
+| `AdditionalDocumentReferenceRequest` | Ek belge referansı |
+| `AttachmentRequest` | Ek dosya |
+
+---
+
+## Enum Referansı
+
+### InvoiceProfile
 
 ```php
 use Nilvera\Enums\InvoiceProfile;
-use Nilvera\Enums\InvoiceType;
-use Nilvera\Enums\UnitType;
 
-InvoiceProfile::Basic->value;      // 'TEMELFATURA'
-InvoiceProfile::Commercial->value; // 'TICARIFATURA'
-InvoiceProfile::Export->value;     // 'IHRACAT'
-InvoiceProfile::EArchive->value;   // 'EARSIVFATURA'
-
-InvoiceType::Sales->value;         // 'SATIS'
-InvoiceType::Return->value;        // 'IADE'
-
-UnitType::Piece->value;            // 'C62'
+InvoiceProfile::Basic               // 'TEMELFATURA'
+InvoiceProfile::Commercial          // 'TICARIFATURA'
+InvoiceProfile::Export              // 'IHRACAT'
+InvoiceProfile::TravellerBag        // 'YOLCUBERABERFATURA'
+InvoiceProfile::EArchive            // 'EARSIVFATURA'
+InvoiceProfile::Public              // 'KAMU'
+InvoiceProfile::HKS                 // 'HKS'
+InvoiceProfile::Energy              // 'ENERJI'
+InvoiceProfile::Medical             // 'ILAC_TIBBICIHAZ'
+InvoiceProfile::Special             // 'OZELFATURA'
+InvoiceProfile::InvestmentIncentive // 'YATIRIMTESVIK'
+InvoiceProfile::IDIS                // 'IDIS'
 ```
 
-## Custom Configuration
+### InvoiceType
+
+```php
+use Nilvera\Enums\InvoiceType;
+
+InvoiceType::Sales               // 'SATIS'
+InvoiceType::Return              // 'IADE'
+InvoiceType::Exemption           // 'ISTISNA'
+InvoiceType::Stoppage            // 'TEVKIFAT'
+InvoiceType::ExciseDuty          // 'IHRACKAYITLI'
+InvoiceType::Cancel              // 'IPTAL'
+InvoiceType::SpecialBase         // 'OZELMATRAH'
+InvoiceType::SGK                 // 'SGK'
+InvoiceType::StoppageReturn      // 'TEVKIFATIADE'
+InvoiceType::Commissioner        // 'KOMISYONCU'
+InvoiceType::HKSSales            // 'HKSSATIS'
+InvoiceType::HKSCommissioner     // 'HKSKOMISYONCU'
+InvoiceType::AccommodationTax    // 'KONAKLAMAVERGISI'
+InvoiceType::EVCharging          // 'SARJ'
+InvoiceType::EVChargingStation   // 'SARJANLIK'
+InvoiceType::TechSupport         // 'TEKNOLOJIDESTEK'
+InvoiceType::YTBSales            // 'YTBSATIS'
+InvoiceType::YTBExemption        // 'YTBISTISNA'
+InvoiceType::YTBReturn           // 'YTBIADE'
+InvoiceType::YTBStoppage         // 'YTBTEVKIFAT'
+InvoiceType::YTBStoppageReturn   // 'YTBTEVKIFATIADE'
+```
+
+### UnitType
+
+```php
+use Nilvera\Enums\UnitType;
+
+UnitType::Piece       // 'C62' — Adet
+UnitType::Kilogram    // 'KGM'
+UnitType::Gram        // 'GRM'
+UnitType::Liter       // 'LTR'
+UnitType::Meter       // 'MTR'
+UnitType::SquareMeter // 'MTK'
+UnitType::CubicMeter  // 'MTQ'
+UnitType::Hour        // 'HUR'
+UnitType::Day         // 'DAY'
+UnitType::Month       // 'MON'
+UnitType::Year        // 'ANN'
+UnitType::Box         // 'BX'
+UnitType::Dozen       // 'DZN'
+UnitType::Ton         // 'TNE'
+UnitType::Package     // 'PK'
+UnitType::Set         // 'SET'
+```
+
+### Diğer Enum'lar
+
+```php
+use Nilvera\Enums\DespatchProfile;
+use Nilvera\Enums\DespatchType;
+use Nilvera\Enums\SendType;
+use Nilvera\Enums\SalesPlatform;
+use Nilvera\Enums\ProductType;
+
+DespatchProfile::TemelIrsaliye  // 'TEMELIRSALIYE'
+DespatchProfile::HKSIrsaliye    // 'HKSIRSALIYE'
+
+DespatchType::Sevk              // 'SEVK'
+DespatchType::Matbudan          // 'MATBUDAN'
+
+SendType::Electronic            // 'ELEKTRONIK'
+SendType::Paper                 // 'KAGIT'
+
+SalesPlatform::Normal           // 'NORMAL'
+SalesPlatform::Internet         // 'INTERNET'
+
+ProductType::Medicine           // 'MEDICINE'
+ProductType::MedicalDevice      // 'MEDICALDEVICE'
+ProductType::Other              // 'OTHER'
+```
+
+---
+
+## Gelişmiş Yapılandırma
 
 ```php
 use Nilvera\Config;
 use Nilvera\NilveraClient;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+$logger = new Logger('nilvera');
+$logger->pushHandler(new StreamHandler('nilvera.log'));
 
 $config = Config::live('your-api-key')
-    ->withTimeout(60)
-    ->withConnectTimeout(5);
+    ->withTimeout(60)           // saniye
+    ->withConnectTimeout(10)    // saniye
+    ->withLogger($logger)       // PSR-3 uyumlu logger
+    ->withRetry(3, 500);        // 3 deneme, 500ms başlangıç gecikmesi (exponential backoff)
 
 $client = NilveraClient::fromConfig($config);
 ```
 
-## Testing
+| Seçenek | Varsayılan | Açıklama |
+|---|---|---|
+| `withTimeout(int)` | 30s | İstek timeout süresi |
+| `withConnectTimeout(int)` | 10s | Bağlantı timeout süresi |
+| `withLogger(LoggerInterface)` | NullLogger | PSR-3 uyumlu logger |
+| `withRetry(int, int)` | 2 deneme, 500ms | Otomatik yeniden deneme (exponential backoff) |
+
+---
+
+## Test
 
 ```bash
 composer install
 ./vendor/bin/phpunit
 ```
 
-## API Documentation
+Entegrasyon testleri için `.env` dosyası oluşturun:
 
-Full API reference: [developer.nilvera.com](https://developer.nilvera.com/en)
+```bash
+cp .env.example .env
+# NILVERA_TEST_API_KEY değerini .env dosyasına girin
+./vendor/bin/phpunit --testsuite integration
+```
 
-## License
+---
+
+## API Dokümantasyonu
+
+Tam API referansı: [developer.nilvera.com](https://developer.nilvera.com/en)
+
+## Lisans
 
 MIT
