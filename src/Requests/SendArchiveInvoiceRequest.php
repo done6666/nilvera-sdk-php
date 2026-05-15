@@ -4,63 +4,127 @@ declare(strict_types=1);
 
 namespace Nilvera\Requests;
 
-use Nilvera\Enums\InvoiceProfile;
 use Nilvera\Enums\InvoiceType;
+use Nilvera\Enums\SalesPlatform;
+use Nilvera\Enums\SendType;
+use Nilvera\Requests\ValueObjects\AdditionalDocumentReferenceRequest;
+use Nilvera\Requests\ValueObjects\ESUReportInfoRequest;
+use Nilvera\Requests\ValueObjects\ExpensesRequest;
+use Nilvera\Requests\ValueObjects\InternetInfoRequest;
 use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
+use Nilvera\Requests\ValueObjects\InvoicePeriodRequest;
+use Nilvera\Requests\ValueObjects\OKCInfoRequest;
+use Nilvera\Requests\ValueObjects\PaymentMeansRequest;
+use Nilvera\Requests\ValueObjects\PaymentTermsRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
+use Nilvera\Requests\ValueObjects\ReturnInvoiceInfoRequest;
+use Nilvera\Requests\ValueObjects\TaxExemptionReasonInfoRequest;
 
 /**
- * e-Arsiv fatura gonderme istegi — POST /earchive/Send/Model
+ * e-Arşiv fatura gönderme isteği — POST /earchive/Send/Model
  *
- * e-Arsiv faturalar GIB sistemine degil dogrudan aliciya iletilir;
- * bu nedenle CustomerAlias zorunlu degildir.
- * InvoiceProfile her zaman InvoiceProfile::EArchive (EARSIVFATURA) olmalidir.
- *
- * JSON ciktisi yapisi:
+ * JSON çıktı yapısı:
  * {
- *   "InvoiceInfo":   { ... },
- *   "CustomerInfo":  { ... },
- *   "InvoiceLines":  [ ... ],
- *   "Notes":         [ "..." ]
+ *   "ArchiveInvoice": {
+ *     "InvoiceInfo":   { ... },
+ *     "CompanyInfo":   { ... },   (opsiyonel — gönderen şirket)
+ *     "CustomerInfo":  { ... },
+ *     "InvoiceLines":  [ ... ],
+ *     "Notes":         [ "..." ]
+ *   }
  * }
+ *
+ * Önemli kurallar:
+ * - SalesPlatform::Internet ise SendType::Electronic zorunludur.
+ * - SalesPlatform::Internet ise InternetInfo doldurulmalıdır.
+ * - InvoiceSerieOrNumber: 3 harfli seri kodu (ör. "EAR") veya 16 haneli tam numara.
  */
 readonly class SendArchiveInvoiceRequest extends AbstractRequest
 {
     /**
-     * @param InvoiceLineRequest[]                        $invoiceLines En az bir kalem zorunludur
-     * @param string[]                                    $notes
-     * @param array<array{IssueDate:string,Value:string}> $orderReference
-     * @param array<array{IssueDate:string,Value:string}> $despatchDocumentReference
+     * @param InvoiceLineRequest[]                   $invoiceLines            En az bir kalem zorunludur
+     * @param string[]                               $notes                   Fatura notları
+     * @param array<array{IssueDate:string,Value:string}> $despatchDocumentReference İrsaliye referansları
+     * @param AdditionalDocumentReferenceRequest[]   $additionalDocumentReferences  Ek belgeler/dosyalar
+     * @param ReturnInvoiceInfoRequest[]             $returnInvoiceInfo        İade fatura bilgileri (IADE tipinde)
+     * @param ExpensesRequest[]                      $expenses                 HKS masrafları
      */
     public function __construct(
         public ReceiverRequest $customerInfo,
         public array $invoiceLines,
         public \DateTimeImmutable $issueDate,
+        public string $invoiceSerieOrNumber,
         public InvoiceType $invoiceType = InvoiceType::Sales,
+        public SendType $sendType = SendType::Electronic,
+        public SalesPlatform $salesPlatform = SalesPlatform::Normal,
         public string $currencyCode = 'TRY',
         public ?float $exchangeRate = null,
         public array $notes = [],
-        public ?string $invoiceSerieOrNumber = null,
         public ?string $uuid = null,
         public ?string $templateUuid = null,
         public ?string $templateBase64String = null,
-        public array $orderReference = [],
+        public ?string $accountingCost = null,
+        public bool $isDespatch = false,
+        public ?ReceiverRequest $companyInfo = null,
+        /** Tek sipariş referansı — {IssueDate: 'YYYY-MM-DD', Value: 'siparis-no'} */
+        public ?array $orderReference = null,
         public array $despatchDocumentReference = [],
+        public ?AdditionalDocumentReferenceRequest $orderReferenceDocument = null,
+        public array $additionalDocumentReferences = [],
+        public ?TaxExemptionReasonInfoRequest $taxExemptionReasonInfo = null,
+        public ?PaymentTermsRequest $paymentTermsInfo = null,
+        public ?PaymentMeansRequest $paymentMeansInfo = null,
+        public ?OKCInfoRequest $okcInfo = null,
+        public ?ESUReportInfoRequest $esuReportInfo = null,
+        public ?InvoicePeriodRequest $invoicePeriod = null,
+        public ?InternetInfoRequest $internetInfo = null,
+        public array $returnInvoiceInfo = [],
+        public array $expenses = [],
     ) {
         if ($this->invoiceLines === []) {
-            throw new \InvalidArgumentException('Faturada en az bir kalem (InvoiceLines) bulunmalidir.');
+            throw new \InvalidArgumentException('Faturada en az bir kalem (InvoiceLines) bulunmalıdır.');
         }
 
         foreach ($this->invoiceLines as $i => $line) {
             if (!$line instanceof InvoiceLineRequest) {
                 throw new \InvalidArgumentException(
-                    "invoiceLines[{$i}] bir InvoiceLineRequest nesnesi olmalidir."
+                    "invoiceLines[{$i}] bir InvoiceLineRequest nesnesi olmalıdır."
                 );
             }
         }
 
         if ($this->exchangeRate !== null && $this->exchangeRate <= 0.0) {
-            throw new \InvalidArgumentException('Doviz kuru (ExchangeRate) sifirdan buyuk olmalidir.');
+            throw new \InvalidArgumentException('Döviz kuru (ExchangeRate) sıfırdan büyük olmalıdır.');
+        }
+
+        if ($this->salesPlatform === SalesPlatform::Internet && $this->sendType !== SendType::Electronic) {
+            throw new \InvalidArgumentException(
+                'SalesPlatform::Internet olduğunda SendType::Electronic zorunludur.'
+            );
+        }
+
+        foreach ($this->returnInvoiceInfo as $i => $item) {
+            if (!$item instanceof ReturnInvoiceInfoRequest) {
+                throw new \InvalidArgumentException(
+                    "returnInvoiceInfo[{$i}] bir ReturnInvoiceInfoRequest nesnesi olmalıdır."
+                );
+            }
+        }
+
+        foreach ($this->expenses as $i => $item) {
+            if (!$item instanceof ExpensesRequest) {
+                throw new \InvalidArgumentException(
+                    "expenses[{$i}] bir ExpensesRequest nesnesi olmalıdır."
+                );
+            }
+        }
+
+        foreach ($this->additionalDocumentReferences as $i => $item) {
+            if (!$item instanceof AdditionalDocumentReferenceRequest) {
+                throw new \InvalidArgumentException(
+                    "additionalDocumentReferences[{$i}] bir AdditionalDocumentReferenceRequest nesnesi olmalıdır."
+                );
+            }
         }
     }
 
@@ -71,16 +135,72 @@ readonly class SendArchiveInvoiceRequest extends AbstractRequest
             'TemplateUUID'              => $this->templateUuid,
             'TemplateBase64String'      => $this->templateBase64String,
             'InvoiceType'               => $this->invoiceType->value,
-            'InvoiceProfile'            => InvoiceProfile::EArchive->value,
             'InvoiceSerieOrNumber'      => $this->invoiceSerieOrNumber,
             'IssueDate'                 => $this->issueDate->format('Y-m-d\TH:i:s\Z'),
             'CurrencyCode'              => $this->currencyCode,
             'ExchangeRate'              => $this->exchangeRate,
-            'OrderReference'            => $this->orderReference !== [] ? $this->orderReference : null,
+            'SendType'                  => $this->sendType->value,
+            'SalesPlatform'             => $this->salesPlatform->value,
+            'AccountingCost'            => $this->accountingCost,
+            'ISDespatch'                => $this->isDespatch ?: null,
+            'OrderReference'            => $this->orderReference,
             'DespatchDocumentReference' => $this->despatchDocumentReference !== [] ? $this->despatchDocumentReference : null,
         ]);
 
-        $payload = [
+        if ($this->orderReferenceDocument !== null) {
+            $invoiceInfo['OrderReferenceDocument'] = $this->orderReferenceDocument->toArray();
+        }
+
+        if ($this->additionalDocumentReferences !== []) {
+            $invoiceInfo['AdditionalDocumentReferences'] = array_map(
+                static fn (AdditionalDocumentReferenceRequest $r) => $r->toArray(),
+                $this->additionalDocumentReferences,
+            );
+        }
+
+        if ($this->taxExemptionReasonInfo !== null) {
+            $invoiceInfo['TaxExemptionReasonInfo'] = $this->taxExemptionReasonInfo->toArray();
+        }
+
+        if ($this->paymentTermsInfo !== null) {
+            $invoiceInfo['PaymentTermsInfo'] = $this->paymentTermsInfo->toArray();
+        }
+
+        if ($this->paymentMeansInfo !== null) {
+            $invoiceInfo['PaymentMeansInfo'] = $this->paymentMeansInfo->toArray();
+        }
+
+        if ($this->okcInfo !== null) {
+            $invoiceInfo['OKCInfo'] = $this->okcInfo->toArray();
+        }
+
+        if ($this->esuReportInfo !== null) {
+            $invoiceInfo['ESUReportInfo'] = $this->esuReportInfo->toArray();
+        }
+
+        if ($this->invoicePeriod !== null) {
+            $invoiceInfo['InvoicePeriod'] = $this->invoicePeriod->toArray();
+        }
+
+        if ($this->returnInvoiceInfo !== []) {
+            $invoiceInfo['ReturnInvoiceInfo'] = array_map(
+                static fn (ReturnInvoiceInfoRequest $r) => $r->toArray(),
+                $this->returnInvoiceInfo,
+            );
+        }
+
+        if ($this->expenses !== []) {
+            $invoiceInfo['Expenses'] = array_map(
+                static fn (ExpensesRequest $e) => $e->toArray(),
+                $this->expenses,
+            );
+        }
+
+        if ($this->internetInfo !== null) {
+            $invoiceInfo['InternetInfo'] = $this->internetInfo->toArray();
+        }
+
+        $archiveInvoice = [
             'InvoiceInfo'  => $invoiceInfo,
             'CustomerInfo' => $this->customerInfo->toArray(),
             'InvoiceLines' => array_map(
@@ -89,10 +209,14 @@ readonly class SendArchiveInvoiceRequest extends AbstractRequest
             ),
         ];
 
-        if ($this->notes !== []) {
-            $payload['Notes'] = $this->notes;
+        if ($this->companyInfo !== null) {
+            $archiveInvoice['CompanyInfo'] = $this->companyInfo->toArray();
         }
 
-        return $payload;
+        if ($this->notes !== []) {
+            $archiveInvoice['Notes'] = $this->notes;
+        }
+
+        return ['ArchiveInvoice' => $archiveInvoice];
     }
 }

@@ -6,6 +6,9 @@ namespace Nilvera\Requests\ValueObjects;
 
 use Nilvera\Enums\UnitType;
 use Nilvera\Requests\AbstractRequest;
+use Nilvera\Requests\ValueObjects\AdditionalItemIdentificationRequest;
+use Nilvera\Requests\ValueObjects\ExportRegisteredInfoRequest;
+use Nilvera\Requests\ValueObjects\TechSupportRequest;
 
 /**
  * Fatura kalemi — API'deki EInvoiceLineDto.
@@ -60,6 +63,9 @@ readonly class InvoiceLineRequest extends AbstractRequest
         public ?float $ozelMatrahTotal = null,
         public ?float $vatAmountWithoutTevkifat = null,
         public ?DeliveryInfoRequest $deliveryInfo = null,
+        public ?TechSupportRequest $techSupport = null,
+        public ?ExportRegisteredInfoRequest $exportRegisteredInfo = null,
+        public ?AdditionalItemIdentificationRequest $additionalItemIdentification = null,
     ) {
         if (trim($this->name) === '') {
             throw new \InvalidArgumentException('Urun adi (Name) bos olamaz.');
@@ -181,6 +187,18 @@ readonly class InvoiceLineRequest extends AbstractRequest
 
         if ($this->deliveryInfo !== null) {
             $data['DeliveryInfo'] = $this->deliveryInfo->toArray();
+        }
+
+        if ($this->techSupport !== null) {
+            $data['TechSupport'] = $this->techSupport->toArray();
+        }
+
+        if ($this->exportRegisteredInfo !== null) {
+            $data['ExportRegisteredInfo'] = $this->exportRegisteredInfo->toArray();
+        }
+
+        if ($this->additionalItemIdentification !== null) {
+            $data['AdditionalItemIdentification'] = $this->additionalItemIdentification->toArray();
         }
 
         return $data;

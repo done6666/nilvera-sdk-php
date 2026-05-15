@@ -45,7 +45,7 @@ readonly class VoucherLineRequest extends AbstractRequest
         $data = $this->filterNulls([
             'Name'                 => $this->name,
             'GrossWage'            => $this->grossWage,
-            'Price'                => (string) $this->price,
+            'Price'                => $this->price,
             'KDVPercent'           => $this->kdvPercent !== 0.0 ? $this->kdvPercent : null,
             'KDVTotal'             => $this->kdvTotal !== 0.0 ? $this->kdvTotal : null,
             'GVWithholdingPercent' => $this->gvWithholdingPercent,

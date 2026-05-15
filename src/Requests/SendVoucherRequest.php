@@ -60,7 +60,7 @@ readonly class SendVoucherRequest extends AbstractRequest
             'SendType'             => $this->sendType,
         ]);
 
-        $payload = [
+        $voucher = [
             'VoucherInfo'  => $voucherInfo,
             'CustomerInfo' => $this->customerInfo->toArray(),
             'VoucherLines' => array_map(
@@ -70,9 +70,9 @@ readonly class SendVoucherRequest extends AbstractRequest
         ];
 
         if ($this->notes !== []) {
-            $payload['Notes'] = $this->notes;
+            $voucher['Notes'] = $this->notes;
         }
 
-        return $payload;
+        return ['Voucher' => $voucher];
     }
 }

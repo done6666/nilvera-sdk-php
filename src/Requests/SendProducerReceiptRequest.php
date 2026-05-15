@@ -53,7 +53,7 @@ readonly class SendProducerReceiptRequest extends AbstractRequest
             'ExchangeRate'          => $this->exchangeRate,
         ]);
 
-        $payload = [
+        $producer = [
             'ProducerInfo'  => $producerInfo,
             'CustomerInfo'  => $this->customerInfo->toArray(),
             'ProducerLines' => array_map(
@@ -63,9 +63,9 @@ readonly class SendProducerReceiptRequest extends AbstractRequest
         ];
 
         if ($this->notes !== []) {
-            $payload['Notes'] = $this->notes;
+            $producer['Notes'] = $this->notes;
         }
 
-        return $payload;
+        return ['Producer' => $producer];
     }
 }
