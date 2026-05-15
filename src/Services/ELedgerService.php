@@ -101,6 +101,28 @@ class ELedgerService extends AbstractService
         return $this->post('/eledger/Sign/Hsm', $data)->json();
     }
 
+    /**
+     * GET /eledger/Sign/Base64String
+     *
+     * @param array<string, mixed> $query
+     * @return string
+     */
+    public function getSignBase64String(array $query = []): string
+    {
+        return $this->get('/eledger/Sign/Base64String', $query)->getBody();
+    }
+
+    /**
+     * POST /eledger/Sign/Upload
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function uploadSignedDocument(array $data): array
+    {
+        return $this->post('/eledger/Sign/Upload', $data)->json();
+    }
+
     // -------------------------------------------------------------------------
     // GIB Integration
     // -------------------------------------------------------------------------

@@ -11,8 +11,8 @@ use Nilvera\Responses\SendDocumentResponse;
  * E-MM (Müstahsil Makbuzu — Producer Receipt) API.
  * Base path: /eproducer
  *
- * Covers: sending, producer receipts, drafts, series,
- * templates, tags, notification settings, statistics, and file upload.
+ * Covers: sending, producer receipts, old producers, drafts, series,
+ * templates, tags, notification settings, statistics, reports, and file upload.
  */
 class EProducerReceiptService extends AbstractService
 {
@@ -31,6 +31,17 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * POST /eproducer/Send/Model/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewModel(array $data): array
+    {
+        return $this->post('/eproducer/Send/Model/Preview', $data)->json();
+    }
+
+    /**
      * POST /eproducer/Send/Xml
      *
      * @return array<string, mixed>
@@ -38,6 +49,61 @@ class EProducerReceiptService extends AbstractService
     public function sendXml(string $xmlContent): array
     {
         return $this->post('/eproducer/Send/Xml', ['XmlContent' => $xmlContent])->json();
+    }
+
+    /**
+     * POST /eproducer/Send/Xml/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewXml(array $data): array
+    {
+        return $this->post('/eproducer/Send/Xml/Preview', $data)->json();
+    }
+
+    /**
+     * POST /eproducer/Send/Base64String
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function sendBase64(array $data): array
+    {
+        return $this->post('/eproducer/Send/Base64String', $data)->json();
+    }
+
+    /**
+     * POST /eproducer/Send/Base64String/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewBase64(array $data): array
+    {
+        return $this->post('/eproducer/Send/Base64String/Preview', $data)->json();
+    }
+
+    /**
+     * GET /eproducer/Send/Xml/Preview
+     *
+     * @param array<string, mixed> $query
+     * @return string
+     */
+    public function getPreviewedXml(array $query = []): string
+    {
+        return $this->get('/eproducer/Send/Xml/Preview', $query)->getBody();
+    }
+
+    /**
+     * POST /eproducer/Send/Report
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function sendReport(array $data): array
+    {
+        return $this->post('/eproducer/Send/Report', $data)->json();
     }
 
     /**
@@ -67,16 +133,6 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
-     * GET /eproducer/Producers/{uuid}/Details
-     *
-     * @return array<string, mixed>
-     */
-    public function getProducerDetails(string $uuid): array
-    {
-        return $this->get("/eproducer/Producers/{$uuid}/Details")->json();
-    }
-
-    /**
      * GET /eproducer/Producers/{uuid}/html
      */
     public function getProducerHtml(string $uuid): string
@@ -101,13 +157,33 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
-     * GET /eproducer/Producers/{uuid}/Status
+     * GET /eproducer/Producers/{uuid}/Tags
      *
      * @return array<string, mixed>
      */
-    public function getProducerStatus(string $uuid): array
+    public function getProducerTags(string $uuid): array
     {
-        return $this->get("/eproducer/Producers/{$uuid}/Status")->json();
+        return $this->get("/eproducer/Producers/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * GET /eproducer/Producers/{uuid}/Histories
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerHistories(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/Histories")->json();
+    }
+
+    /**
+     * GET /eproducer/Producers/{uuid}/Details
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerDetails(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/Details")->json();
     }
 
     /**
@@ -121,16 +197,6 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
-     * GET /eproducer/Producers/{uuid}/Tags
-     *
-     * @return array<string, mixed>
-     */
-    public function getProducerTags(string $uuid): array
-    {
-        return $this->get("/eproducer/Producers/{$uuid}/Tags")->json();
-    }
-
-    /**
      * GET /eproducer/Producers/{messageId}/MailActivityhistories
      *
      * @return array<string, mixed>
@@ -141,11 +207,59 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * GET /eproducer/Producers/{uuid}/Whatsapphistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerWhatsappHistories(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/Whatsapphistories")->json();
+    }
+
+    /**
+     * GET /eproducer/Producers/{uuid}/Smshistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerSmsHistories(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/Smshistories")->json();
+    }
+
+    /**
+     * GET /eproducer/Producers/{uuid}/EmailActivities
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerEmailActivities(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/EmailActivities")->json();
+    }
+
+    /**
+     * GET /eproducer/Producers/{uuid}/Status
+     *
+     * @return array<string, mixed>
+     */
+    public function getProducerStatus(string $uuid): array
+    {
+        return $this->get("/eproducer/Producers/{$uuid}/Status")->json();
+    }
+
+    /**
      * PUT /eproducer/Producers/{uuid}/Cancel
      */
     public function cancelProducer(string $uuid): void
     {
         $this->put("/eproducer/Producers/{$uuid}/Cancel");
+    }
+
+    /**
+     * PUT /eproducer/Producers/{uuid}/RevertCancel
+     */
+    public function revertCancelProducer(string $uuid): void
+    {
+        $this->put("/eproducer/Producers/{$uuid}/RevertCancel");
     }
 
     /**
@@ -166,6 +280,17 @@ class EProducerReceiptService extends AbstractService
     public function setProducerSpecialCode(array $data): void
     {
         $this->put('/eproducer/Producers/SpecialCode', $data);
+    }
+
+    /**
+     * PUT /eproducer/Producers/Operation/{operationType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function assignStatusToProducers(string $operationType, array $data = []): array
+    {
+        return $this->put("/eproducer/Producers/Operation/{$operationType}", $data)->json();
     }
 
     /**
@@ -195,6 +320,19 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * POST /eproducer/Producers/Sms/Send
+     *
+     * @param string[] $phoneNumbers
+     */
+    public function sendProducerBySms(string $uuid, array $phoneNumbers): void
+    {
+        $this->post('/eproducer/Producers/Sms/Send', [
+            'UUID'         => $uuid,
+            'phoneNumbers' => $phoneNumbers,
+        ]);
+    }
+
+    /**
      * POST /eproducer/Producers/Export/{fileType}
      *
      * @param array<string, mixed> $data
@@ -213,6 +351,78 @@ class EProducerReceiptService extends AbstractService
     public function createDraftFromProducer(string $uuid): array
     {
         return $this->post("/eproducer/Producers/{$uuid}/CreateDraft")->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Old Producers
+    // -------------------------------------------------------------------------
+
+    /**
+     * POST /eproducer/Old — upload old producer receipts (multipart/form-data).
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function uploadOldProducer(array $data): array
+    {
+        return $this->post('/eproducer/Old', $data)->json();
+    }
+
+    /**
+     * GET /eproducer/Old
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listOldProducers(array $query = []): array
+    {
+        return $this->get('/eproducer/Old', $query)->json();
+    }
+
+    /**
+     * GET /eproducer/Old/{uuid}/html
+     */
+    public function getOldProducerHtml(string $uuid): string
+    {
+        return $this->get("/eproducer/Old/{$uuid}/html")->getBody();
+    }
+
+    /**
+     * GET /eproducer/Old/{uuid}/pdf
+     */
+    public function getOldProducerPdf(string $uuid): string
+    {
+        return $this->get("/eproducer/Old/{$uuid}/pdf")->getBody();
+    }
+
+    /**
+     * GET /eproducer/Old/{uuid}/xml
+     */
+    public function getOldProducerXml(string $uuid): string
+    {
+        return $this->get("/eproducer/Old/{$uuid}/xml")->getBody();
+    }
+
+    /**
+     * POST /eproducer/Old/Export/{fileType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function exportOldProducers(string $fileType, array $data = []): array
+    {
+        return $this->post("/eproducer/Old/Export/{$fileType}", $data)->json();
+    }
+
+    /**
+     * PUT /eproducer/Old/Operation/{operationType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function assignStatusToOldProducers(string $operationType, array $data = []): array
+    {
+        return $this->put("/eproducer/Old/Operation/{$operationType}", $data)->json();
     }
 
     // -------------------------------------------------------------------------
@@ -307,22 +517,6 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
-     * DELETE /eproducer/Draft — bulk delete.
-     */
-    public function deleteDraftsBulk(): void
-    {
-        $this->delete('/eproducer/Draft');
-    }
-
-    /**
-     * DELETE /eproducer/Draft/{uuid}
-     */
-    public function deleteDraft(string $uuid): void
-    {
-        $this->delete("/eproducer/Draft/{$uuid}");
-    }
-
-    /**
      * POST /eproducer/Draft/ConfirmAndSend
      *
      * @param array<string, mixed> $data
@@ -353,6 +547,16 @@ class EProducerReceiptService extends AbstractService
     public function exportDrafts(string $fileType, array $data = []): array
     {
         return $this->post("/eproducer/Draft/Export/{$fileType}", $data)->json();
+    }
+
+    /**
+     * POST /eproducer/Draft/Whatsapp/Send
+     *
+     * @param array<string, mixed> $data
+     */
+    public function sendDraftByWhatsapp(array $data): void
+    {
+        $this->post('/eproducer/Draft/Whatsapp/Send', $data);
     }
 
     /**
@@ -387,13 +591,83 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
-     * POST /eproducer/Draft/Whatsapp/Send
-     *
-     * @param array<string, mixed> $data
+     * DELETE /eproducer/Draft — bulk delete.
      */
-    public function sendDraftByWhatsapp(array $data): void
+    public function deleteDraftsBulk(): void
     {
-        $this->post('/eproducer/Draft/Whatsapp/Send', $data);
+        $this->delete('/eproducer/Draft');
+    }
+
+    /**
+     * DELETE /eproducer/Draft/{uuid}
+     */
+    public function deleteDraft(string $uuid): void
+    {
+        $this->delete("/eproducer/Draft/{$uuid}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Reports
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /eproducer/Report
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listReports(array $query = []): array
+    {
+        return $this->get('/eproducer/Report', $query)->json();
+    }
+
+    /**
+     * GET /eproducer/Report/List
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function getReportList(array $query = []): array
+    {
+        return $this->get('/eproducer/Report/List', $query)->json();
+    }
+
+    /**
+     * GET /eproducer/Report/{uuid}/Xml
+     */
+    public function getReportXml(string $uuid): string
+    {
+        return $this->get("/eproducer/Report/{$uuid}/Xml")->getBody();
+    }
+
+    /**
+     * GET /eproducer/Report/{uuid}/Documents
+     *
+     * @return array<string, mixed>
+     */
+    public function listReportDocuments(string $uuid): array
+    {
+        return $this->get("/eproducer/Report/{$uuid}/Documents")->json();
+    }
+
+    /**
+     * GET /eproducer/Report/{uuid}/Histories
+     *
+     * @return array<string, mixed>
+     */
+    public function getReportHistories(string $uuid): array
+    {
+        return $this->get("/eproducer/Report/{$uuid}/Histories")->json();
+    }
+
+    /**
+     * GET /eproducer/Report/{uuid}/GibStatus
+     *
+     * @return array<string, mixed>
+     */
+    public function queryReportGibStatus(string $uuid): array
+    {
+        return $this->get("/eproducer/Report/{$uuid}/GibStatus")->json();
     }
 
     // -------------------------------------------------------------------------
@@ -411,6 +685,16 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * GET /eproducer/Series/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getSeriesDetail(int $id): array
+    {
+        return $this->get("/eproducer/Series/{$id}")->json();
+    }
+
+    /**
      * POST /eproducer/Series
      *
      * @param array<string, mixed> $data
@@ -419,6 +703,17 @@ class EProducerReceiptService extends AbstractService
     public function createSeries(array $data): array
     {
         return $this->post('/eproducer/Series', $data)->json();
+    }
+
+    /**
+     * PUT /eproducer/Series
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateSeries(array $data): array
+    {
+        return $this->put('/eproducer/Series', $data)->json();
     }
 
     // -------------------------------------------------------------------------
@@ -436,11 +731,40 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * GET /eproducer/Templates/{uuid}
+     *
+     * @return array<string, mixed>
+     */
+    public function getTemplateDetail(string $uuid): array
+    {
+        return $this->get("/eproducer/Templates/{$uuid}")->json();
+    }
+
+    /**
      * GET /eproducer/Templates/Preview/{uuid}
      */
     public function previewTemplate(string $uuid): string
     {
         return $this->get("/eproducer/Templates/Preview/{$uuid}")->getBody();
+    }
+
+    /**
+     * PUT /eproducer/Templates
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateTemplate(array $data): array
+    {
+        return $this->put('/eproducer/Templates', $data)->json();
+    }
+
+    /**
+     * DELETE /eproducer/Templates/{uuid}
+     */
+    public function deleteTemplate(string $uuid): void
+    {
+        $this->delete("/eproducer/Templates/{$uuid}");
     }
 
     // -------------------------------------------------------------------------
@@ -458,6 +782,17 @@ class EProducerReceiptService extends AbstractService
     }
 
     /**
+     * POST /eproducer/Tags
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createTag(array $data): array
+    {
+        return $this->post('/eproducer/Tags', $data)->json();
+    }
+
+    /**
      * PUT /eproducer/Tags
      *
      * @param array<string, mixed> $data
@@ -465,6 +800,14 @@ class EProducerReceiptService extends AbstractService
     public function updateTags(array $data): void
     {
         $this->put('/eproducer/Tags', $data);
+    }
+
+    /**
+     * DELETE /eproducer/Tags/{uuid}
+     */
+    public function deleteTag(string $uuid): void
+    {
+        $this->delete("/eproducer/Tags/{$uuid}");
     }
 
     // -------------------------------------------------------------------------

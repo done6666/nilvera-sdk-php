@@ -7,7 +7,8 @@ namespace Nilvera\Services;
 use Nilvera\Requests\CreateCustomerRequest;
 
 /**
- * General API: company, taxpayer, customer, stock, GIB account, credits.
+ * General API: company, taxpayer, customer, stock, GIB account, credits,
+ * company identity, mailing settings.
  * Base path: /general
  */
 class GeneralService extends AbstractService
@@ -38,6 +39,30 @@ class GeneralService extends AbstractService
     }
 
     /**
+     * GET /general/Company/Modules
+     *
+     * @return array<string, mixed>
+     */
+    public function getCompanyModules(): array
+    {
+        return $this->get('/general/Company/Modules')->json();
+    }
+
+    /**
+     * GET /general/Company/List — list companies assigned to the user.
+     *
+     * @return array<string, mixed>
+     */
+    public function getUserCompanies(): array
+    {
+        return $this->get('/general/Company/List')->json();
+    }
+
+    // -------------------------------------------------------------------------
+    // Company Certificates
+    // -------------------------------------------------------------------------
+
+    /**
      * GET /general/Company/Certificate
      *
      * @return array<string, mixed>
@@ -48,11 +73,76 @@ class GeneralService extends AbstractService
     }
 
     /**
+     * GET /general/Company/Certificate/{serialNumber}
+     *
+     * @return array<string, mixed>
+     */
+    public function getCertificateBySerial(string $serialNumber): array
+    {
+        return $this->get("/general/Company/Certificate/{$serialNumber}")->json();
+    }
+
+    /**
+     * POST /general/Company/Certificate
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function addCertificate(array $data): array
+    {
+        return $this->post('/general/Company/Certificate', $data)->json();
+    }
+
+    /**
+     * PUT /general/Company/Certificate
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateCertificate(array $data): array
+    {
+        return $this->put('/general/Company/Certificate', $data)->json();
+    }
+
+    /**
      * DELETE /general/Company/Certificate/{id}
      */
     public function deleteCertificate(int $id): void
     {
         $this->delete("/general/Company/Certificate/{$id}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Company Identity Information
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /general/CompanyIdentification
+     *
+     * @return array<string, mixed>
+     */
+    public function getCompanyIdentifications(): array
+    {
+        return $this->get('/general/CompanyIdentification')->json();
+    }
+
+    /**
+     * POST /general/CompanyIdentification
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function addCompanyIdentification(array $data): array
+    {
+        return $this->post('/general/CompanyIdentification', $data)->json();
+    }
+
+    /**
+     * DELETE /general/CompanyIdentification/{id}
+     */
+    public function deleteCompanyIdentification(int $id): void
+    {
+        $this->delete("/general/CompanyIdentification/{$id}");
     }
 
     // -------------------------------------------------------------------------
@@ -119,6 +209,53 @@ class GeneralService extends AbstractService
     }
 
     // -------------------------------------------------------------------------
+    // Mailing Settings
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /general/Mailing/Setting
+     *
+     * @return array<string, mixed>
+     */
+    public function getMailSettings(): array
+    {
+        return $this->get('/general/Mailing/Setting')->json();
+    }
+
+    /**
+     * PUT /general/Mailing/Setting/Whatsapp
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateWhatsappFeature(array $data): array
+    {
+        return $this->put('/general/Mailing/Setting/Whatsapp', $data)->json();
+    }
+
+    /**
+     * PUT /general/Mailing/Setting/Mail
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateMailFeature(array $data): array
+    {
+        return $this->put('/general/Mailing/Setting/Mail', $data)->json();
+    }
+
+    /**
+     * PUT /general/Mailing/Setting/Sms
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateSmsFeature(array $data): array
+    {
+        return $this->put('/general/Mailing/Setting/Sms', $data)->json();
+    }
+
+    // -------------------------------------------------------------------------
     // Taxpayer / GlobalCompany Operations
     // -------------------------------------------------------------------------
 
@@ -136,17 +273,16 @@ class GeneralService extends AbstractService
     }
 
     /**
-     * List taxpayers by alias type and global user type.
+     * Taxpayer list returned as a ZIP file.
      *
      * GET /general/GlobalCompany/{aliasType}/{globalUserType}
      *
      * @param string $aliasType       PK | GB
      * @param string $globalUserType  Invoice | DespatchAdvice
-     * @return array<string, mixed>
      */
-    public function listTaxpayersByType(string $aliasType, string $globalUserType): array
+    public function downloadTaxpayersZip(string $aliasType, string $globalUserType): string
     {
-        return $this->get("/general/GlobalCompany/{$aliasType}/{$globalUserType}")->json();
+        return $this->get("/general/GlobalCompany/{$aliasType}/{$globalUserType}")->getBody();
     }
 
     /**
@@ -236,6 +372,16 @@ class GeneralService extends AbstractService
     }
 
     /**
+     * GET /general/Customers/Search/{searchText}
+     *
+     * @return array<string, mixed>
+     */
+    public function searchCustomers(string $searchText): array
+    {
+        return $this->get("/general/Customers/Search/{$searchText}")->json();
+    }
+
+    /**
      * POST /general/Customers
      *
      * @return array<string, mixed>
@@ -266,10 +412,8 @@ class GeneralService extends AbstractService
 
     /**
      * DELETE /general/Customers/Bulk
-     *
-     * @param array<int> $ids
      */
-    public function deleteCustomersBulk(array $ids): void
+    public function deleteCustomersBulk(): void
     {
         $this->delete('/general/Customers/Bulk');
     }

@@ -8,7 +8,7 @@ namespace Nilvera\Services;
  * E-Adisyon (Electronic Bill/Receipt) API.
  * Base path: /ebill
  *
- * Covers: sending, bills, drafts, series, templates,
+ * Covers: sending, bills, old bills, drafts, reports, series, templates,
  * tags, notification settings, statistics, and file upload.
  */
 class EReceiptService extends AbstractService
@@ -16,6 +16,50 @@ class EReceiptService extends AbstractService
     // -------------------------------------------------------------------------
     // Sending
     // -------------------------------------------------------------------------
+
+    /**
+     * POST /ebill/Send/Model
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function send(array $data): array
+    {
+        return $this->post('/ebill/Send/Model', $data)->json();
+    }
+
+    /**
+     * POST /ebill/Send/Model/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewModel(array $data): array
+    {
+        return $this->post('/ebill/Send/Model/Preview', $data)->json();
+    }
+
+    /**
+     * POST /ebill/Send/Xml
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function sendXml(array $data): array
+    {
+        return $this->post('/ebill/Send/Xml', $data)->json();
+    }
+
+    /**
+     * POST /ebill/Send/Xml/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewXml(array $data): array
+    {
+        return $this->post('/ebill/Send/Xml/Preview', $data)->json();
+    }
 
     /**
      * POST /ebill/Send/Base64String
@@ -26,6 +70,39 @@ class EReceiptService extends AbstractService
     public function sendBase64(array $data): array
     {
         return $this->post('/ebill/Send/Base64String', $data)->json();
+    }
+
+    /**
+     * POST /ebill/Send/Base64String/Preview
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function previewBase64(array $data): array
+    {
+        return $this->post('/ebill/Send/Base64String/Preview', $data)->json();
+    }
+
+    /**
+     * GET /ebill/Send/Xml/Preview
+     *
+     * @param array<string, mixed> $query
+     * @return string
+     */
+    public function getPreviewedXml(array $query = []): string
+    {
+        return $this->get('/ebill/Send/Xml/Preview', $query)->getBody();
+    }
+
+    /**
+     * POST /ebill/Send/Report
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function sendReport(array $data): array
+    {
+        return $this->post('/ebill/Send/Report', $data)->json();
     }
 
     /**
@@ -55,16 +132,6 @@ class EReceiptService extends AbstractService
     }
 
     /**
-     * GET /ebill/Bills/{uuid}/Details
-     *
-     * @return array<string, mixed>
-     */
-    public function getBillDetails(string $uuid): array
-    {
-        return $this->get("/ebill/Bills/{$uuid}/Details")->json();
-    }
-
-    /**
      * GET /ebill/Bills/{uuid}/html
      */
     public function getBillHtml(string $uuid): string
@@ -89,13 +156,13 @@ class EReceiptService extends AbstractService
     }
 
     /**
-     * GET /ebill/Bills/{uuid}/Status
+     * GET /ebill/Bills/{uuid}/Tags
      *
      * @return array<string, mixed>
      */
-    public function getBillStatus(string $uuid): array
+    public function getBillTags(string $uuid): array
     {
-        return $this->get("/ebill/Bills/{$uuid}/Status")->json();
+        return $this->get("/ebill/Bills/{$uuid}/Tags")->json();
     }
 
     /**
@@ -109,6 +176,36 @@ class EReceiptService extends AbstractService
     }
 
     /**
+     * GET /ebill/Bills/{uuid}/Details
+     *
+     * @return array<string, mixed>
+     */
+    public function getBillDetails(string $uuid): array
+    {
+        return $this->get("/ebill/Bills/{$uuid}/Details")->json();
+    }
+
+    /**
+     * GET /ebill/Bills/{messageId}/MailActivityhistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getBillMailHistories(string $messageId): array
+    {
+        return $this->get("/ebill/Bills/{$messageId}/MailActivityhistories")->json();
+    }
+
+    /**
+     * GET /ebill/Bills/{uuid}/Whatsapphistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getBillWhatsappHistories(string $uuid): array
+    {
+        return $this->get("/ebill/Bills/{$uuid}/Whatsapphistories")->json();
+    }
+
+    /**
      * GET /ebill/Bills/{uuid}/Smshistories
      *
      * @return array<string, mixed>
@@ -119,13 +216,23 @@ class EReceiptService extends AbstractService
     }
 
     /**
-     * GET /ebill/Bills/{uuid}/Tags
+     * GET /ebill/Bills/{uuid}/EmailActivities
      *
      * @return array<string, mixed>
      */
-    public function getBillTags(string $uuid): array
+    public function getBillEmailActivities(string $uuid): array
     {
-        return $this->get("/ebill/Bills/{$uuid}/Tags")->json();
+        return $this->get("/ebill/Bills/{$uuid}/EmailActivities")->json();
+    }
+
+    /**
+     * GET /ebill/Bills/{uuid}/Status
+     *
+     * @return array<string, mixed>
+     */
+    public function getBillStatus(string $uuid): array
+    {
+        return $this->get("/ebill/Bills/{$uuid}/Status")->json();
     }
 
     /**
@@ -134,6 +241,14 @@ class EReceiptService extends AbstractService
     public function cancelBill(string $uuid): void
     {
         $this->put("/ebill/Bills/{$uuid}/Cancel");
+    }
+
+    /**
+     * PUT /ebill/Bills/{uuid}/RevertCancel
+     */
+    public function revertCancelBill(string $uuid): void
+    {
+        $this->put("/ebill/Bills/{$uuid}/RevertCancel");
     }
 
     /**
@@ -154,6 +269,17 @@ class EReceiptService extends AbstractService
     public function setBillSpecialCode(array $data): void
     {
         $this->put('/ebill/Bills/SpecialCode', $data);
+    }
+
+    /**
+     * PUT /ebill/Bills/Operation/{operationType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function assignStatusToBills(string $operationType, array $data = []): array
+    {
+        return $this->put("/ebill/Bills/Operation/{$operationType}", $data)->json();
     }
 
     /**
@@ -193,6 +319,17 @@ class EReceiptService extends AbstractService
             'UUID'         => $uuid,
             'phoneNumbers' => $phoneNumbers,
         ]);
+    }
+
+    /**
+     * POST /ebill/Bills/Export/{fileType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function exportBills(string $fileType, array $data = []): array
+    {
+        return $this->post("/ebill/Bills/Export/{$fileType}", $data)->json();
     }
 
     /**
@@ -237,6 +374,14 @@ class EReceiptService extends AbstractService
     }
 
     /**
+     * GET /ebill/Draft/{uuid}/xml
+     */
+    public function getDraftXml(string $uuid): string
+    {
+        return $this->get("/ebill/Draft/{$uuid}/xml")->getBody();
+    }
+
+    /**
      * GET /ebill/Draft/{uuid}/model
      *
      * @return array<string, mixed>
@@ -244,6 +389,37 @@ class EReceiptService extends AbstractService
     public function getDraftModel(string $uuid): array
     {
         return $this->get("/ebill/Draft/{$uuid}/model")->json();
+    }
+
+    /**
+     * GET /ebill/Draft/{uuid}/Tags
+     *
+     * @return array<string, mixed>
+     */
+    public function getDraftTags(string $uuid): array
+    {
+        return $this->get("/ebill/Draft/{$uuid}/Tags")->json();
+    }
+
+    /**
+     * GET /ebill/Draft/{uuid}/Whatsapphistories
+     *
+     * @return array<string, mixed>
+     */
+    public function getDraftWhatsappHistories(string $uuid): array
+    {
+        return $this->get("/ebill/Draft/{$uuid}/Whatsapphistories")->json();
+    }
+
+    /**
+     * POST /ebill/Draft/Create
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createDraft(array $data): array
+    {
+        return $this->post('/ebill/Draft/Create', $data)->json();
     }
 
     /**
@@ -258,19 +434,14 @@ class EReceiptService extends AbstractService
     }
 
     /**
-     * DELETE /ebill/Draft — bulk delete drafts.
+     * POST /ebill/Draft/ConfirmAndSend
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
      */
-    public function deleteDraftsBulk(): void
+    public function confirmAndSendDraft(array $data): array
     {
-        $this->delete('/ebill/Draft');
-    }
-
-    /**
-     * DELETE /ebill/Draft/{uuid}
-     */
-    public function deleteDraft(string $uuid): void
-    {
-        $this->delete("/ebill/Draft/{$uuid}");
+        return $this->post('/ebill/Draft/ConfirmAndSend', $data)->json();
     }
 
     /**
@@ -282,6 +453,38 @@ class EReceiptService extends AbstractService
     public function editAndSendDraft(array $data): array
     {
         return $this->post('/ebill/Draft/EditAndSend', $data)->json();
+    }
+
+    /**
+     * POST /ebill/Draft/Export/{fileType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function exportDrafts(string $fileType, array $data = []): array
+    {
+        return $this->post("/ebill/Draft/Export/{$fileType}", $data)->json();
+    }
+
+    /**
+     * POST /ebill/Draft/Whatsapp/Send
+     *
+     * @param array<string, mixed> $data
+     */
+    public function sendDraftByWhatsapp(array $data): void
+    {
+        $this->post('/ebill/Draft/Whatsapp/Send', $data);
+    }
+
+    /**
+     * PUT /ebill/Draft/Operation/{operationType}
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function assignStatusToDrafts(string $operationType, array $data = []): array
+    {
+        return $this->put("/ebill/Draft/Operation/{$operationType}", $data)->json();
     }
 
     /**
@@ -304,6 +507,86 @@ class EReceiptService extends AbstractService
         $this->put('/ebill/Draft/SpecialCode', $data);
     }
 
+    /**
+     * DELETE /ebill/Draft — bulk delete drafts.
+     */
+    public function deleteDraftsBulk(): void
+    {
+        $this->delete('/ebill/Draft');
+    }
+
+    /**
+     * DELETE /ebill/Draft/{uuid}
+     */
+    public function deleteDraft(string $uuid): void
+    {
+        $this->delete("/ebill/Draft/{$uuid}");
+    }
+
+    // -------------------------------------------------------------------------
+    // Reports
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET /ebill/Report
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function listReports(array $query = []): array
+    {
+        return $this->get('/ebill/Report', $query)->json();
+    }
+
+    /**
+     * GET /ebill/Report/List
+     *
+     * @param array<string, mixed> $query
+     * @return array<string, mixed>
+     */
+    public function getReportList(array $query = []): array
+    {
+        return $this->get('/ebill/Report/List', $query)->json();
+    }
+
+    /**
+     * GET /ebill/Report/{uuid}/Xml
+     */
+    public function getReportXml(string $uuid): string
+    {
+        return $this->get("/ebill/Report/{$uuid}/Xml")->getBody();
+    }
+
+    /**
+     * GET /ebill/Report/{uuid}/Documents
+     *
+     * @return array<string, mixed>
+     */
+    public function listReportDocuments(string $uuid): array
+    {
+        return $this->get("/ebill/Report/{$uuid}/Documents")->json();
+    }
+
+    /**
+     * GET /ebill/Report/{uuid}/Histories
+     *
+     * @return array<string, mixed>
+     */
+    public function getReportHistories(string $uuid): array
+    {
+        return $this->get("/ebill/Report/{$uuid}/Histories")->json();
+    }
+
+    /**
+     * GET /ebill/Report/{uuid}/GibStatus
+     *
+     * @return array<string, mixed>
+     */
+    public function queryReportGibStatus(string $uuid): array
+    {
+        return $this->get("/ebill/Report/{$uuid}/GibStatus")->json();
+    }
+
     // -------------------------------------------------------------------------
     // Series
     // -------------------------------------------------------------------------
@@ -316,6 +599,38 @@ class EReceiptService extends AbstractService
     public function listSeries(): array
     {
         return $this->get('/ebill/Series')->json();
+    }
+
+    /**
+     * GET /ebill/Series/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getSeriesDetail(int $id): array
+    {
+        return $this->get("/ebill/Series/{$id}")->json();
+    }
+
+    /**
+     * POST /ebill/Series
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createSeries(array $data): array
+    {
+        return $this->post('/ebill/Series', $data)->json();
+    }
+
+    /**
+     * PUT /ebill/Series
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateSeries(array $data): array
+    {
+        return $this->put('/ebill/Series', $data)->json();
     }
 
     // -------------------------------------------------------------------------
@@ -333,11 +648,40 @@ class EReceiptService extends AbstractService
     }
 
     /**
+     * GET /ebill/Templates/{uuid}
+     *
+     * @return array<string, mixed>
+     */
+    public function getTemplateDetail(string $uuid): array
+    {
+        return $this->get("/ebill/Templates/{$uuid}")->json();
+    }
+
+    /**
      * GET /ebill/Templates/Preview/{uuid}
      */
     public function previewTemplate(string $uuid): string
     {
         return $this->get("/ebill/Templates/Preview/{$uuid}")->getBody();
+    }
+
+    /**
+     * PUT /ebill/Templates
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function updateTemplate(array $data): array
+    {
+        return $this->put('/ebill/Templates', $data)->json();
+    }
+
+    /**
+     * DELETE /ebill/Templates/{uuid}
+     */
+    public function deleteTemplate(string $uuid): void
+    {
+        $this->delete("/ebill/Templates/{$uuid}");
     }
 
     // -------------------------------------------------------------------------
@@ -355,6 +699,17 @@ class EReceiptService extends AbstractService
     }
 
     /**
+     * POST /ebill/Tags
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    public function createTag(array $data): array
+    {
+        return $this->post('/ebill/Tags', $data)->json();
+    }
+
+    /**
      * PUT /ebill/Tags
      *
      * @param array<string, mixed> $data
@@ -364,6 +719,14 @@ class EReceiptService extends AbstractService
         $this->put('/ebill/Tags', $data);
     }
 
+    /**
+     * DELETE /ebill/Tags/{uuid}
+     */
+    public function deleteTag(string $uuid): void
+    {
+        $this->delete("/ebill/Tags/{$uuid}");
+    }
+
     // -------------------------------------------------------------------------
     // Notification Settings
     // -------------------------------------------------------------------------
@@ -371,11 +734,12 @@ class EReceiptService extends AbstractService
     /**
      * GET /ebill/Notification
      *
+     * @param array<string, mixed> $query
      * @return array<string, mixed>
      */
-    public function listNotifications(): array
+    public function listNotifications(array $query = []): array
     {
-        return $this->get('/ebill/Notification')->json();
+        return $this->get('/ebill/Notification', $query)->json();
     }
 
     /**
@@ -416,21 +780,6 @@ class EReceiptService extends AbstractService
     public function deleteNotification(int $id): void
     {
         $this->delete("/ebill/Notification/{$id}");
-    }
-
-    // -------------------------------------------------------------------------
-    // Reports
-    // -------------------------------------------------------------------------
-
-    /**
-     * GET /ebill/Report
-     *
-     * @param array<string, mixed> $query
-     * @return array<string, mixed>
-     */
-    public function listReports(array $query = []): array
-    {
-        return $this->get('/ebill/Report', $query)->json();
     }
 
     // -------------------------------------------------------------------------
