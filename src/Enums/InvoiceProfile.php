@@ -17,4 +17,5 @@ enum InvoiceProfile: string
     case Medical             = 'ILAC_TIBBICIHAZ';
     case Special             = 'OZELFATURA';
     case InvestmentIncentive = 'YATIRIMTESVIK';
+    case IDIS                = 'IDIS';
 }

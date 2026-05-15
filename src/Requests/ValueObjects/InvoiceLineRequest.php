@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Nilvera\Requests\ValueObjects;
 
+use Nilvera\Enums\InvestmentIncentiveExpenseType;
 use Nilvera\Enums\UnitType;
 use Nilvera\Requests\AbstractRequest;
 use Nilvera\Requests\ValueObjects\AdditionalItemIdentificationRequest;
 use Nilvera\Requests\ValueObjects\ExportRegisteredInfoRequest;
+use Nilvera\Requests\ValueObjects\MedicineAndMedicalDeviceRequest;
 use Nilvera\Requests\ValueObjects\TechSupportRequest;
 
 /**
@@ -66,6 +68,10 @@ readonly class InvoiceLineRequest extends AbstractRequest
         public ?TechSupportRequest $techSupport = null,
         public ?ExportRegisteredInfoRequest $exportRegisteredInfo = null,
         public ?AdditionalItemIdentificationRequest $additionalItemIdentification = null,
+        /** Yatırım teşvik faturalarında kalem masraf tipi */
+        public ?InvestmentIncentiveExpenseType $investmentIncentiveExpenseType = null,
+        /** İlaç/Tıbbi cihaz profili faturalarında kullanılır */
+        public ?MedicineAndMedicalDeviceRequest $medicineAndMedicalDevice = null,
     ) {
         if (trim($this->name) === '') {
             throw new \InvalidArgumentException('Urun adi (Name) bos olamaz.');
@@ -199,6 +205,14 @@ readonly class InvoiceLineRequest extends AbstractRequest
 
         if ($this->additionalItemIdentification !== null) {
             $data['AdditionalItemIdentification'] = $this->additionalItemIdentification->toArray();
+        }
+
+        if ($this->investmentIncentiveExpenseType !== null) {
+            $data['InvestmentIncentiveExpenseType'] = $this->investmentIncentiveExpenseType->value;
+        }
+
+        if ($this->medicineAndMedicalDevice !== null) {
+            $data['MedicineAndMedicalDevice'] = $this->medicineAndMedicalDevice->toArray();
         }
 
         return $data;
