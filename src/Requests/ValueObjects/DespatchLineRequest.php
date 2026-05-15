@@ -39,6 +39,8 @@ readonly class DespatchLineRequest extends AbstractRequest
         public ?string $modelName = null,
         /** IDIS senaryosunda zorunlu: 2 harf + 7 rakam */
         public ?string $labelNumber = null,
+        /** Ek ürün kimlik bilgisi */
+        public ?string $additionalItemIdentification = null,
     ) {
         if (trim($this->name) === '') {
             throw new \InvalidArgumentException('Name bos olamaz.');
@@ -78,10 +80,11 @@ readonly class DespatchLineRequest extends AbstractRequest
             'OutstandingUnitType' => $outstandingUnit,
             'OutstandingUnitName' => $this->outstandingUnitName,
             'OutstandingReason'   => $this->outstandingReason,
-            'ManufacturerCode'    => $this->manufacturerCode,
-            'BrandName'           => $this->brandName,
-            'ModelName'           => $this->modelName,
-            'LabelNumber'         => $this->labelNumber,
+            'ManufacturerCode'              => $this->manufacturerCode,
+            'BrandName'                     => $this->brandName,
+            'ModelName'                     => $this->modelName,
+            'LabelNumber'                   => $this->labelNumber,
+            'AdditionalItemIdentification'  => $this->additionalItemIdentification,
         ]);
     }
 }
