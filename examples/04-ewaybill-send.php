@@ -4,13 +4,22 @@ declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
+use Nilvera\Enums\DespatchProfile;
+use Nilvera\Enums\DespatchType;
 use Nilvera\Enums\UnitType;
 use Nilvera\Exception\ApiException;
 use Nilvera\Exception\ValidationException;
 use Nilvera\NilveraClient;
 use Nilvera\Requests\SendWaybillRequest;
+use Nilvera\Requests\ValueObjects\AddressInfoRequest;
+use Nilvera\Requests\ValueObjects\CarrierInfoRequest;
 use Nilvera\Requests\ValueObjects\DespatchLineRequest;
+use Nilvera\Requests\ValueObjects\DriverPersonRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
+use Nilvera\Requests\ValueObjects\ShipmentDetailRequest;
+use Nilvera\Requests\ValueObjects\ShipmentInfoRequest;
+use Nilvera\Requests\ValueObjects\WaybillDeliveryRequest;
+use Nilvera\Requests\ValueObjects\WaybillOrderReferenceRequest;
 
 $client = NilveraClient::test('TEST-API-KEY-BURAYA');
 
@@ -18,12 +27,14 @@ $client = NilveraClient::test('TEST-API-KEY-BURAYA');
 // 1. Alıcı bilgileri
 // -------------------------------------------------------------------
 $customerInfo = new ReceiverRequest(
-    taxNumber: '3230456015',
+    taxNumber: '6310540565',
     name:      'XYZ Dağıtım Ltd. Şti.',
     address:   'Sanayi Cad. No:12',
     district:  'Pendik',
     city:      'İstanbul',
+    country:   'Türkiye',
     taxOffice: 'Pendik',
+    postalCode: '34890',
 );
 
 // -------------------------------------------------------------------
@@ -31,64 +42,106 @@ $customerInfo = new ReceiverRequest(
 // -------------------------------------------------------------------
 $lines = [
     new DespatchLineRequest(
-        sellerCode:        'STK-001',
-        quantityPrice:     150.00,
-        lineTotal:         300.00,
         name:              'Ürün A',
         deliveredUnitType: UnitType::Piece,
         deliveredQuantity: 2.0,
+        sellerCode:        'STK-001',
+        deliveredUnitName: 'Adet',
+        quantityPrice:     150.00,
+        lineTotal:         300.00,
     ),
     new DespatchLineRequest(
-        sellerCode:        'STK-002',
-        quantityPrice:     50.00,
-        lineTotal:         250.00,
         name:              'Ürün B',
         deliveredUnitType: UnitType::Piece,
         deliveredQuantity: 5.0,
+        sellerCode:        'STK-002',
+        deliveredUnitName: 'Adet',
+        quantityPrice:     50.00,
+        lineTotal:         250.00,
     ),
 ];
 
 // -------------------------------------------------------------------
-// 3. e-İrsaliye isteği
-//    despatchType: 1 = SEVK (varsayılan), 0 = MATBUDAN
-//    despatchProfile: 1 = TEMELIRSALIYE (varsayılan), 2 = HKSIRSALIYE
+// 3. Sevkiyat detayı (şoför + araç + teslimat adresi)
+// -------------------------------------------------------------------
+$shipmentDetail = new ShipmentDetailRequest(
+    shipmentInfo: new ShipmentInfoRequest(
+        licensePlateId: '34ABC123',
+        driverPersons: [
+            new DriverPersonRequest(
+                firstName: 'Ahmet',
+                lastName:  'Yılmaz',
+                taxNumber: '11111111111',
+            ),
+        ],
+    ),
+    delivery: new WaybillDeliveryRequest(
+        addressInfo: new AddressInfoRequest(
+            address:    'Sanayi Cad. No:12',
+            district:   'Pendik',
+            city:       'İstanbul',
+            country:    'Türkiye',
+            postalCode: '34890',
+        ),
+        // Taşıyıcı firma opsiyoneldir; eklenirse tüm alanları zorunludur:
+        // carrierInfo: new CarrierInfoRequest(
+        //     taxNumber:  '1288331521',
+        //     name:       'Örnek Kargo Lojistik A.Ş.',
+        //     address:    'Kargo Merkezi No:1',
+        //     district:   'Pendik',
+        //     city:       'İstanbul',
+        //     country:    'Türkiye',
+        //     postalCode: '34890',
+        // ),
+    ),
+);
+
+// -------------------------------------------------------------------
+// 4. e-İrsaliye isteği
 // -------------------------------------------------------------------
 $request = new SendWaybillRequest(
-    customerInfo:          $customerInfo,
-    despatchLines:         $lines,
-    issueDate:             new DateTimeImmutable('2026-05-14'),
-    despatchType:          1,
-    despatchProfile:       1,
-    actualDespatchDateTime: new DateTimeImmutable('2026-05-14T08:30:00'),
-    notes:                 ['Kırılgan ürün, dikkatli taşıyınız.'],
+    customerAlias:          'urn:mail:defaultpk@nilvera.com',
+    customerInfo:           $customerInfo,
+    despatchLines:          $lines,
+    issueDate:              new DateTimeImmutable('2026-05-15T08:30:00'),
+    despatchType:           DespatchType::Sevk,
+    despatchProfile:        DespatchProfile::TemelIrsaliye,
+    actualDespatchDateTime: new DateTimeImmutable('2026-05-15T08:30:00'),
+    shipmentDetail:         $shipmentDetail,
+    // Sipariş referansı opsiyoneldir:
+    // orderReference: new WaybillOrderReferenceRequest(
+    //     id:        'SIP-2026-001',
+    //     issueDate: new DateTimeImmutable('2026-05-14'),
+    // ),
+    notes: ['Kırılgan ürün, dikkatli taşıyınız.'],
 );
 
 try {
     // -------------------------------------------------------------------
-    // 4. Gönder
+    // 5. Gönder
     // -------------------------------------------------------------------
     $response = $client->eWaybill()->send($request);
 
     echo 'e-İrsaliye gönderildi.' . PHP_EOL;
-    echo 'UUID         : ' . $response->uuid . PHP_EOL;
-    echo 'İrsaliye No  : ' . ($response->invoiceNumber ?? '—') . PHP_EOL;
+    echo 'UUID          : ' . $response->uuid . PHP_EOL;
+    echo 'İrsaliye No   : ' . $response->despatchNumber . PHP_EOL;
 
     $uuid = $response->uuid;
 
     // -------------------------------------------------------------------
-    // 5. PDF al
+    // 6. PDF al
     // -------------------------------------------------------------------
     $pdf = $client->eWaybill()->getSaleWaybillPdf($uuid);
     file_put_contents('/tmp/irsaliye.pdf', $pdf);
     echo 'PDF kaydedildi: /tmp/irsaliye.pdf' . PHP_EOL;
 
     // -------------------------------------------------------------------
-    // 6. İptal et
+    // 7. İptal et
     // -------------------------------------------------------------------
     // $client->eWaybill()->cancelSaleWaybill($uuid);
 
     // -------------------------------------------------------------------
-    // 7. Gelen irsaliyeleri kabul / reddet
+    // 8. Gelen irsaliyeleri kabul / reddet
     // -------------------------------------------------------------------
     // $purchaseWaybills = $client->eWaybill()->listPurchaseWaybills();
     // $incomingUuid = $purchaseWaybills['Data'][0]['UUID'] ?? null;

@@ -8,23 +8,28 @@ use Nilvera\Enums\UnitType;
 use Nilvera\Requests\AbstractRequest;
 
 /**
- * e-Irsaliye kalemi — DespatchLine.
+ * e-Irsaliye kalemi — EDespatch.DespatchLines dizisinin bir elemani.
  */
 readonly class DespatchLineRequest extends AbstractRequest
 {
     public function __construct(
-        /** Urun satici kodu (zorunlu) */
-        public string $sellerCode,
-        /** Birim fiyat */
-        public float $quantityPrice,
-        /** Satir toplami */
-        public float $lineTotal,
-        public ?string $name = null,
+        /** Urun adi (zorunlu) */
+        public string $name,
+        /** Teslim edilen birim tipi (zorunlu) */
+        public UnitType|string $deliveredUnitType,
+        /** Teslim edilen miktar (zorunlu) */
+        public float $deliveredQuantity,
+        /** Satici urun kodu */
+        public ?string $sellerCode = null,
+        /** Alici urun kodu */
         public ?string $buyerCode = null,
         public ?string $description = null,
-        public UnitType|string|null $deliveredUnitType = null,
+        /** Birim adi — okunabilir etiket (orn. "Adet") */
         public ?string $deliveredUnitName = null,
-        public ?float $deliveredQuantity = null,
+        /** Birim fiyat */
+        public ?float $quantityPrice = null,
+        /** Satir toplami */
+        public ?float $lineTotal = null,
         public ?float $outstandingQuantity = null,
         public UnitType|string|null $outstandingUnitType = null,
         public ?string $outstandingUnitName = null,
@@ -35,13 +40,16 @@ readonly class DespatchLineRequest extends AbstractRequest
         /** IDIS senaryosunda zorunlu: 2 harf + 7 rakam */
         public ?string $labelNumber = null,
     ) {
-        if (trim($this->sellerCode) === '') {
-            throw new \InvalidArgumentException('SellerCode bos olamaz.');
+        if (trim($this->name) === '') {
+            throw new \InvalidArgumentException('Name bos olamaz.');
         }
-        if ($this->quantityPrice < 0.0) {
+        if ($this->deliveredQuantity < 0.0) {
+            throw new \InvalidArgumentException('DeliveredQuantity negatif olamaz.');
+        }
+        if ($this->quantityPrice !== null && $this->quantityPrice < 0.0) {
             throw new \InvalidArgumentException('QuantityPrice negatif olamaz.');
         }
-        if ($this->lineTotal < 0.0) {
+        if ($this->lineTotal !== null && $this->lineTotal < 0.0) {
             throw new \InvalidArgumentException('LineTotal negatif olamaz.');
         }
     }
@@ -57,15 +65,15 @@ readonly class DespatchLineRequest extends AbstractRequest
             : $this->outstandingUnitType;
 
         return $this->filterNulls([
-            'SellerCode'          => $this->sellerCode,
-            'BuyerCode'           => $this->buyerCode,
             'Name'                => $this->name,
-            'Description'         => $this->description,
-            'QuantityPrice'       => (string) $this->quantityPrice,
-            'LineTotal'           => $this->lineTotal,
             'DeliveredUnitType'   => $deliveredUnit,
             'DeliveredUnitName'   => $this->deliveredUnitName,
             'DeliveredQuantity'   => $this->deliveredQuantity,
+            'SellerCode'          => $this->sellerCode,
+            'BuyerCode'           => $this->buyerCode,
+            'Description'         => $this->description,
+            'QuantityPrice'       => $this->quantityPrice,
+            'LineTotal'           => $this->lineTotal,
             'OutstandingQuantity' => $this->outstandingQuantity,
             'OutstandingUnitType' => $outstandingUnit,
             'OutstandingUnitName' => $this->outstandingUnitName,

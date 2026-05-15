@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Nilvera\Services;
 
 use Nilvera\Requests\SendWaybillRequest;
-use Nilvera\Responses\SendDocumentResponse;
+use Nilvera\Responses\SendWaybillResponse;
 
 /**
  * E-Waybill (e-İrsaliye) API — base path: /edespatch
@@ -23,9 +23,9 @@ class EWaybillService extends AbstractService
     /**
      * POST /edespatch/Send/Model
      */
-    public function send(SendWaybillRequest $waybill): SendDocumentResponse
+    public function send(SendWaybillRequest $waybill): SendWaybillResponse
     {
-        return SendDocumentResponse::fromArray(
+        return SendWaybillResponse::fromArray(
             $this->post('/edespatch/Send/Model', $waybill->toArray())->json()
         );
     }
