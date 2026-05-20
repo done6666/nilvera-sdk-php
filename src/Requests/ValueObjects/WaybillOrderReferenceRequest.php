@@ -23,7 +23,7 @@ readonly class WaybillOrderReferenceRequest extends AbstractRequest
     {
         $data = [
             'ID'        => $this->id,
-            'IssueDate' => $this->issueDate->format('Y-m-d\TH:i:s'),
+            'IssueDate' => $this->issueDate->format('Y-m-d\TH:i:s\Z'),
         ];
 
         if ($this->documentReference !== null) {

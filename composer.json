@@ -40,6 +40,13 @@
       "Nilvera\\Tests\\": "tests/"
     }
   },
+  "scripts": {
+    "test": "phpunit",
+    "test:unit": "phpunit --testsuite=Unit",
+    "test:integration": "phpunit --testsuite=Integration",
+    "cs-check": "php-cs-fixer check --diff",
+    "cs-fix": "php-cs-fixer fix"
+  },
   "config": {
     "sort-packages": true,
     "optimize-autoloader": true,

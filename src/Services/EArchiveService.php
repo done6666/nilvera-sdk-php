@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\CreateSeriesRequest;
 use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\ListSeriesRequest;
 use Nilvera\Requests\SendArchiveInvoiceRequest;
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendBySmsRequest;
+use Nilvera\Requests\UpdateSeriesRequest;
 use Nilvera\Responses\SendDocumentResponse;
 
 /**
@@ -31,6 +34,21 @@ class EArchiveService extends AbstractService
         return SendDocumentResponse::fromArray(
             $this->post('/earchive/Send/Model', $invoice->toArray())->json()
         );
+    }
+
+    /**
+     * POST /earchive/Send/Model/Preview — returns HTML preview without sending.
+     */
+    public function previewSend(SendArchiveInvoiceRequest $invoice): string
+    {
+        $body = $this->post('/earchive/Send/Model/Preview', $invoice->toArray())->getBody();
+
+        try {
+            $decoded = json_decode($body, flags: JSON_THROW_ON_ERROR);
+            return is_string($decoded) ? $decoded : $body;
+        } catch (\JsonException) {
+            return $body;
+        }
     }
 
     /**
@@ -312,11 +330,12 @@ class EArchiveService extends AbstractService
      * POST /earchive/Draft/EditAndSend
      *
      * @param array<string, mixed> $data
-     * @return array<string, mixed>
      */
-    public function editAndSendDraft(array $data): array
+    public function editAndSendDraft(array $data): SendDocumentResponse
     {
-        return $this->post('/earchive/Draft/EditAndSend', $data)->json();
+        return SendDocumentResponse::fromArray(
+            $this->post('/earchive/Draft/EditAndSend', $data)->json()
+        );
     }
 
     /**
@@ -426,20 +445,37 @@ class EArchiveService extends AbstractService
      *
      * @return array<string, mixed>
      */
-    public function listSeries(): array
+    public function listSeries(ListSeriesRequest $query = new ListSeriesRequest()): array
     {
-        return $this->get('/earchive/Series')->json();
+        return $this->get('/earchive/Series', $query->toArray())->json();
+    }
+
+    /**
+     * GET /earchive/Series/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getSeries(int $id): array
+    {
+        return $this->get("/earchive/Series/{$id}")->json();
     }
 
     /**
      * POST /earchive/Series
      *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function createSeries(array $data): array
+    public function createSeries(CreateSeriesRequest $request): array
     {
-        return $this->post('/earchive/Series', $data)->json();
+        return $this->post('/earchive/Series', $request->toArray())->json();
+    }
+
+    /**
+     * PUT /earchive/Series
+     */
+    public function updateSeries(UpdateSeriesRequest $request): bool
+    {
+        return json_decode($this->put('/earchive/Series', $request->toArray())->getBody()) === true;
     }
 
     // -------------------------------------------------------------------------

@@ -8,8 +8,11 @@ use Nilvera\Enums\InvoiceType;
 use Nilvera\Enums\SalesPlatform;
 use Nilvera\Enums\SendType;
 use Nilvera\Enums\UnitType;
+use Nilvera\Requests\CreateSeriesRequest;
 use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\ListSeriesRequest;
 use Nilvera\Requests\SendArchiveInvoiceRequest;
+use Nilvera\Requests\UpdateSeriesRequest;
 use Nilvera\Requests\ValueObjects\AdditionalDocumentReferenceRequest;
 use Nilvera\Requests\ValueObjects\InternetInfoRequest;
 use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
@@ -76,12 +79,103 @@ class EArchiveServiceTest extends IntegrationTestCase
         $this->assertArrayHasKey('Content', $result);
     }
 
-    public function test_list_series_returns_array(): void
+    public function test_list_series_returns_paginated_result(): void
     {
         $result = $this->client->eArchive()->listSeries();
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('Content', $result);
+        $this->assertArrayHasKey('Page', $result);
+        $this->assertArrayHasKey('TotalCount', $result);
+    }
+
+    public function test_list_series_with_active_filter(): void
+    {
+        $result = $this->client->eArchive()->listSeries(
+            new ListSeriesRequest(isActive: true, pageSize: 5)
+        );
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('Content', $result);
+
+        foreach ($result['Content'] ?? [] as $serie) {
+            $this->assertTrue($serie['IsActive'], 'IsActive filtresi çalışmıyor.');
+        }
+    }
+
+    public function test_create_and_get_series(): void
+    {
+        // Nilvera API seri adını tam 3 karakter zorunlu kılar
+        $uniqueName = strtoupper(substr(md5((string) microtime(true)), 0, 3));
+
+        $created = $this->client->eArchive()->createSeries(
+            new CreateSeriesRequest(name: $uniqueName, isActive: true, isDefault: false)
+        );
+
+        $this->assertArrayHasKey('ID', $created);
+        $this->assertSame($uniqueName, $created['Name']);
+        $this->assertTrue($created['IsActive']);
+        $this->assertFalse($created['IsDefault']);
+
+        $detail = $this->client->eArchive()->getSeries($created['ID']);
+
+        $this->assertSame($created['ID'], $detail['ID']);
+        $this->assertSame($uniqueName, $detail['Name']);
+        $this->assertArrayHasKey('Details', $detail);
+    }
+
+    public function test_update_series_active_status(): void
+    {
+        $seriesList = $this->client->eArchive()->listSeries();
+        $series     = $seriesList['Content'] ?? [];
+
+        if (empty($series)) {
+            $this->markTestSkipped('Test hesabında e-Arşiv serisi bulunamadı.');
+        }
+
+        $target         = $series[0];
+        $newActiveState = !$target['IsActive'];
+
+        $result = $this->client->eArchive()->updateSeries(
+            new UpdateSeriesRequest(
+                id:        $target['ID'],
+                isDefault: $target['IsDefault'],
+                isActive:  $newActiveState,
+            )
+        );
+
+        $this->assertTrue($result);
+
+        $detail = $this->client->eArchive()->getSeries($target['ID']);
+        $this->assertSame($newActiveState, $detail['IsActive']);
+
+        // Orijinal duruma geri al
+        $this->client->eArchive()->updateSeries(
+            new UpdateSeriesRequest(
+                id:        $target['ID'],
+                isDefault: $target['IsDefault'],
+                isActive:  $target['IsActive'],
+            )
+        );
+    }
+
+    public function test_get_series_detail_has_expected_keys(): void
+    {
+        $seriesList = $this->client->eArchive()->listSeries();
+
+        if (empty($seriesList['Content'])) {
+            $this->markTestSkipped('Test hesabında e-Arşiv serisi bulunamadı.');
+        }
+
+        $id     = $seriesList['Content'][0]['ID'];
+        $detail = $this->client->eArchive()->getSeries($id);
+
+        $this->assertArrayHasKey('ID', $detail);
+        $this->assertArrayHasKey('Name', $detail);
+        $this->assertArrayHasKey('IsActive', $detail);
+        $this->assertArrayHasKey('IsDefault', $detail);
+        $this->assertArrayHasKey('CreatedDate', $detail);
+        $this->assertArrayHasKey('Details', $detail);
     }
 
     public function test_list_templates_returns_array(): void
@@ -96,6 +190,26 @@ class EArchiveServiceTest extends IntegrationTestCase
         $result = $this->client->eArchive()->listTags();
 
         $this->assertIsArray($result);
+    }
+
+    // -------------------------------------------------------------------------
+    // Önizleme
+    // -------------------------------------------------------------------------
+
+    public function test_preview_send_returns_html_string(): void
+    {
+        $request = new SendArchiveInvoiceRequest(
+            customerInfo:         $this->customer,
+            invoiceLines:         [$this->line],
+            issueDate:            new \DateTimeImmutable(),
+            invoiceSerieOrNumber: $this->series,
+        );
+
+        $html = $this->client->eArchive()->previewSend($request);
+
+        $this->assertIsString($html);
+        $this->assertNotEmpty($html);
+        $this->assertStringContainsStringIgnoringCase('<!DOCTYPE html>', $html);
     }
 
     // -------------------------------------------------------------------------

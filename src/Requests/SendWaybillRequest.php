@@ -48,10 +48,10 @@ readonly class SendWaybillRequest extends AbstractRequest
         public ReceiverRequest $customerInfo,
         public array $despatchLines,
         public \DateTimeImmutable $issueDate,
+        /** 16 haneli irsaliye numarası veya 3 haneli seri kodu (zorunlu) */
+        public string $despatchSerieOrNumber,
         public DespatchType $despatchType = DespatchType::Sevk,
         public DespatchProfile $despatchProfile = DespatchProfile::TemelIrsaliye,
-        /** 16 haneli irsaliye numarası veya 3 haneli seri kodu */
-        public ?string $despatchSerieOrNumber = null,
         public ?\DateTimeImmutable $actualDespatchDateTime = null,
         public string $currencyCode = 'TRY',
         /** Ödenecek tutar */
@@ -79,6 +79,10 @@ readonly class SendWaybillRequest extends AbstractRequest
         public array $additionalDocumentReferences = [],
         public array $notes = [],
     ) {
+        if (trim($this->despatchSerieOrNumber) === '') {
+            throw new \InvalidArgumentException('DespatchSerieOrNumber boş olamaz.');
+        }
+
         if ($this->despatchLines === []) {
             throw new \InvalidArgumentException('İrsaliyede en az bir kalem bulunmalıdır.');
         }
@@ -109,11 +113,11 @@ readonly class SendWaybillRequest extends AbstractRequest
             'DespatchType'           => $this->despatchType->value,
             'DespatchProfile'        => $this->despatchProfile->value,
             'DespatchSerieOrNumber'  => $this->despatchSerieOrNumber,
-            'IssueDate'              => $this->issueDate->format('Y-m-d\TH:i:s'),
-            'ActualDespatchDateTime' => $this->actualDespatchDateTime?->format('Y-m-d\TH:i:s'),
+            'IssueDate'              => $this->issueDate->format('Y-m-d\TH:i:s\Z'),
+            'ActualDespatchDateTime' => $this->actualDespatchDateTime?->format('Y-m-d\TH:i:s\Z'),
             'CurrencyCode'           => $this->currencyCode,
             'PayableAmount'          => $this->payableAmount,
-            'MatbuIssueDate'         => $this->matbuIssueDate?->format('Y-m-d\TH:i:s'),
+            'MatbuIssueDate'         => $this->matbuIssueDate?->format('Y-m-d\TH:i:s\Z'),
             'MatbuNumber'            => $this->matbuNumber,
             'ShipmentNumber'         => $this->shipmentNumber,
         ]);

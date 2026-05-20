@@ -21,7 +21,8 @@ use Nilvera\Requests\ValueObjects\ShipmentInfoRequest;
 use Nilvera\Requests\ValueObjects\WaybillDeliveryRequest;
 use Nilvera\Requests\ValueObjects\WaybillOrderReferenceRequest;
 
-$client = NilveraClient::test('TEST-API-KEY-BURAYA');
+$apiKey = $_SERVER['NILVERA_API_KEY'] ?? $_ENV['NILVERA_API_KEY'] ?? 'GECERSIZ-API-KEY';
+$client = NilveraClient::test($apiKey);
 
 // -------------------------------------------------------------------
 // 1. Alıcı bilgileri
@@ -103,10 +104,11 @@ $request = new SendWaybillRequest(
     customerAlias:          'urn:mail:defaultpk@nilvera.com',
     customerInfo:           $customerInfo,
     despatchLines:          $lines,
-    issueDate:              new DateTimeImmutable('2026-05-15T08:30:00'),
+    issueDate:              new DateTimeImmutable(),
+    despatchSerieOrNumber:  'EIT',
     despatchType:           DespatchType::Sevk,
     despatchProfile:        DespatchProfile::TemelIrsaliye,
-    actualDespatchDateTime: new DateTimeImmutable('2026-05-15T08:30:00'),
+    actualDespatchDateTime: new DateTimeImmutable(),
     shipmentDetail:         $shipmentDetail,
     // Sipariş referansı opsiyoneldir:
     // orderReference: new WaybillOrderReferenceRequest(
@@ -152,10 +154,8 @@ try {
     // }
 
 } catch (ValidationException $e) {
-    echo 'Doğrulama hatası:' . PHP_EOL;
-    foreach ($e->getErrors() as $field => $messages) {
-        echo "  [{$field}] " . implode(', ', (array) $messages) . PHP_EOL;
-    }
+    echo $e->getSummary() . PHP_EOL . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 } catch (ApiException $e) {
-    echo 'API hatası (' . $e->getStatusCode() . '): ' . $e->getMessage() . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 }

@@ -8,9 +8,12 @@ use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Psr7\Response as GuzzleResponse;
 use Nilvera\Config;
 use Nilvera\Http\HttpClient;
+use Nilvera\Requests\CreateSeriesRequest;
 use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\ListSeriesRequest;
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Requests\UpdateSeriesRequest;
 use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 use Nilvera\Enums\UnitType;
@@ -29,6 +32,64 @@ class EInvoiceServiceTest extends TestCase
         $this->service = new EInvoiceService($httpClient);
     }
 
+    public function test_preview_posts_to_correct_endpoint(): void
+    {
+        $expectedHtml = '<html><body>Fatura Önizleme</body></html>';
+
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Send/Model/Preview', $this->anything())
+            ->willReturn(new GuzzleResponse(200, [], json_encode($expectedHtml)));
+
+        $receiver = new ReceiverRequest(
+            taxNumber: '1234567890',
+            name:      'Test Sirket',
+            address:   'Test Mah. No:1',
+            district:  'Kadikoy',
+            city:      'Istanbul',
+        );
+        $invoice = new SendInvoiceRequest(
+            customerInfo:         $receiver,
+            invoiceLines:         [InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000, 20)],
+            issueDate:            new \DateTimeImmutable('2026-05-19'),
+            customerAlias:        'urn:mail:test@sirket.com.tr',
+            invoiceSerieOrNumber: 'EFT',
+        );
+
+        $result = $this->service->preview($invoice);
+
+        $this->assertSame($expectedHtml, $result);
+    }
+
+    public function test_preview_decodes_json_wrapped_html(): void
+    {
+        $html = '<!DOCTYPE html><html><body>Önizleme</body></html>';
+
+        $this->guzzle->method('request')
+            ->willReturn(new GuzzleResponse(200, [], json_encode($html)));
+
+        $receiver = new ReceiverRequest(
+            taxNumber: '1234567890',
+            name:      'Test Sirket',
+            address:   'Test Mah. No:1',
+            district:  'Kadikoy',
+            city:      'Istanbul',
+        );
+        $invoice = new SendInvoiceRequest(
+            customerInfo:         $receiver,
+            invoiceLines:         [InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000, 20)],
+            issueDate:            new \DateTimeImmutable('2026-05-19'),
+            customerAlias:        'urn:mail:test@sirket.com.tr',
+            invoiceSerieOrNumber: 'EFT',
+        );
+
+        $result = $this->service->preview($invoice);
+
+        $this->assertIsString($result);
+        $this->assertStringStartsWith('<!DOCTYPE html>', $result);
+        $this->assertStringNotContainsString('\\"', $result);
+    }
+
     public function test_send_posts_to_correct_endpoint(): void
     {
         $this->guzzle->expects($this->once())
@@ -44,9 +105,11 @@ class EInvoiceServiceTest extends TestCase
             city:      'Istanbul',
         );
         $invoice = new SendInvoiceRequest(
-            customerInfo: $receiver,
-            invoiceLines: [InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000, 20)],
-            issueDate:    new \DateTimeImmutable('2026-05-14'),
+            customerInfo:         $receiver,
+            invoiceLines:         [InvoiceLineRequest::make('Urun', 1, UnitType::Piece, 1000, 20)],
+            issueDate:            new \DateTimeImmutable('2026-05-14'),
+            customerAlias:        'urn:mail:test@sirket.com.tr',
+            invoiceSerieOrNumber: 'EFT',
         );
 
         $result = $this->service->send($invoice);
@@ -150,5 +213,96 @@ class EInvoiceServiceTest extends TestCase
         $result = $this->service->createReturnFromPurchaseInvoice($uuid);
 
         $this->assertSame('return-uuid', $result['UUID']);
+    }
+
+    // -------------------------------------------------------------------------
+    // Seri (Series) testleri
+    // -------------------------------------------------------------------------
+
+    public function test_list_series_calls_correct_endpoint(): void
+    {
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('GET', 'https://apitest.nilvera.com/einvoice/Series', $this->anything())
+            ->willReturn(new GuzzleResponse(200, [], '{"Content":[],"Page":1,"TotalCount":0}'));
+
+        $result = $this->service->listSeries();
+
+        $this->assertSame([], $result['Content']);
+    }
+
+    public function test_list_series_with_query_params(): void
+    {
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('GET', 'https://apitest.nilvera.com/einvoice/Series', $this->callback(
+                fn ($opts) => ($opts['query']['IsActive'] ?? null) === 'true'
+                    && ($opts['query']['PageSize'] ?? null) === 5
+            ))
+            ->willReturn(new GuzzleResponse(200, [], '{"Content":[],"Page":1,"TotalCount":0}'));
+
+        $this->service->listSeries(new ListSeriesRequest(isActive: true, pageSize: 5));
+    }
+
+    public function test_get_series_uses_id_in_path(): void
+    {
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('GET', 'https://apitest.nilvera.com/einvoice/Series/42', $this->anything())
+            ->willReturn(new GuzzleResponse(200, [], '{"ID":42,"Name":"EFT","IsActive":true,"IsDefault":false}'));
+
+        $result = $this->service->getSeries(42);
+
+        $this->assertSame(42, $result['ID']);
+        $this->assertSame('EFT', $result['Name']);
+    }
+
+    public function test_create_series_sends_correct_payload(): void
+    {
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Series', $this->callback(
+                fn ($opts) => ($opts['json']['Name'] ?? null) === 'EFT'
+                    && ($opts['json']['IsActive'] ?? null) === true
+                    && ($opts['json']['IsDefault'] ?? null) === false
+            ))
+            ->willReturn(new GuzzleResponse(200, [], '{"ID":10,"Name":"EFT","IsActive":true,"IsDefault":false}'));
+
+        $result = $this->service->createSeries(
+            new CreateSeriesRequest(name: 'EFT', isActive: true, isDefault: false)
+        );
+
+        $this->assertSame(10, $result['ID']);
+        $this->assertSame('EFT', $result['Name']);
+    }
+
+    public function test_update_series_returns_true_on_success(): void
+    {
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('PUT', 'https://apitest.nilvera.com/einvoice/Series', $this->callback(
+                fn ($opts) => ($opts['json']['ID'] ?? null) === 10
+                    && ($opts['json']['IsActive'] ?? null) === false
+                    && ($opts['json']['IsDefault'] ?? null) === false
+            ))
+            ->willReturn(new GuzzleResponse(200, [], 'true'));
+
+        $result = $this->service->updateSeries(
+            new UpdateSeriesRequest(id: 10, isDefault: false, isActive: false)
+        );
+
+        $this->assertTrue($result);
+    }
+
+    public function test_update_series_returns_false_on_failure(): void
+    {
+        $this->guzzle->method('request')
+            ->willReturn(new GuzzleResponse(200, [], 'false'));
+
+        $result = $this->service->updateSeries(
+            new UpdateSeriesRequest(id: 99, isDefault: false, isActive: true)
+        );
+
+        $this->assertFalse($result);
     }
 }

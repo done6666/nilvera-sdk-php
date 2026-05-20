@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Nilvera\Services;
 
+use Nilvera\Requests\CreateSeriesRequest;
 use Nilvera\Requests\ListInvoicesRequest;
+use Nilvera\Requests\ListSeriesRequest;
 use Nilvera\Requests\SendByEmailRequest;
 use Nilvera\Requests\SendBySmsRequest;
 use Nilvera\Requests\SendInvoiceRequest;
+use Nilvera\Requests\UpdateSeriesRequest;
 use Nilvera\Responses\SendDocumentResponse;
 
 /**
@@ -34,13 +37,18 @@ class EInvoiceService extends AbstractService
     }
 
     /**
-     * POST /einvoice/Send/Model/Preview
-     *
-     * @return array<string, mixed>
+     * POST /einvoice/Send/Model/Preview — returns HTML preview without sending.
      */
-    public function preview(SendInvoiceRequest $invoice): array
+    public function preview(SendInvoiceRequest $invoice): string
     {
-        return $this->post('/einvoice/Send/Model/Preview', $invoice->toArray())->json();
+        $body = $this->post('/einvoice/Send/Model/Preview', $invoice->toArray())->getBody();
+
+        try {
+            $decoded = json_decode($body, flags: JSON_THROW_ON_ERROR);
+            return is_string($decoded) ? $decoded : $body;
+        } catch (\JsonException) {
+            return $body;
+        }
     }
 
     /**
@@ -431,7 +439,7 @@ class EInvoiceService extends AbstractService
      */
     public function deleteDraftsBulk(array $data = []): void
     {
-        $this->delete('/einvoice/Draft');
+        $this->delete('/einvoice/Draft', $data);
     }
 
     /**
@@ -503,20 +511,37 @@ class EInvoiceService extends AbstractService
      *
      * @return array<string, mixed>
      */
-    public function listSeries(): array
+    public function listSeries(ListSeriesRequest $query = new ListSeriesRequest()): array
     {
-        return $this->get('/einvoice/Series')->json();
+        return $this->get('/einvoice/Series', $query->toArray())->json();
+    }
+
+    /**
+     * GET /einvoice/Series/{id}
+     *
+     * @return array<string, mixed>
+     */
+    public function getSeries(int $id): array
+    {
+        return $this->get("/einvoice/Series/{$id}")->json();
     }
 
     /**
      * POST /einvoice/Series
      *
-     * @param array<string, mixed> $data
      * @return array<string, mixed>
      */
-    public function createSeries(array $data): array
+    public function createSeries(CreateSeriesRequest $request): array
     {
-        return $this->post('/einvoice/Series', $data)->json();
+        return $this->post('/einvoice/Series', $request->toArray())->json();
+    }
+
+    /**
+     * PUT /einvoice/Series
+     */
+    public function updateSeries(UpdateSeriesRequest $request): bool
+    {
+        return json_decode($this->put('/einvoice/Series', $request->toArray())->getBody()) === true;
     }
 
     // -------------------------------------------------------------------------

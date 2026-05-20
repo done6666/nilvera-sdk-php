@@ -20,7 +20,11 @@ class Config
         private readonly int $retryAttempts = 2,
         /** Yeniden denemeler arasindaki bekleme suresi (ms); her denemede ikiye katlanir */
         private readonly int $retryDelayMs = 500,
-    ) {}
+    ) {
+        if (trim($this->apiKey) === '') {
+            throw new \InvalidArgumentException('API key boş olamaz.');
+        }
+    }
 
     public static function live(string $apiKey): self
     {

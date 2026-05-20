@@ -7,7 +7,10 @@ namespace Nilvera\Tests\Integration\Services;
 use Nilvera\Enums\DespatchProfile;
 use Nilvera\Enums\DespatchType;
 use Nilvera\Enums\UnitType;
+use Nilvera\Requests\CreateSeriesRequest;
+use Nilvera\Requests\ListSeriesRequest;
 use Nilvera\Requests\SendWaybillRequest;
+use Nilvera\Requests\UpdateSeriesRequest;
 use Nilvera\Requests\ValueObjects\AddressInfoRequest;
 use Nilvera\Requests\ValueObjects\AdditionalDocumentReferenceRequest;
 use Nilvera\Requests\ValueObjects\CarrierInfoRequest;
@@ -44,11 +47,101 @@ class EWaybillServiceTest extends IntegrationTestCase
         $this->assertIsArray($result);
     }
 
-    public function test_list_series_returns_array(): void
+    public function test_list_series_returns_paginated_result(): void
     {
         $result = $this->client->eWaybill()->listSeries();
 
         $this->assertIsArray($result);
+        $this->assertArrayHasKey('Content', $result);
+        $this->assertArrayHasKey('Page', $result);
+        $this->assertArrayHasKey('TotalCount', $result);
+    }
+
+    public function test_list_series_with_active_filter(): void
+    {
+        $result = $this->client->eWaybill()->listSeries(
+            new ListSeriesRequest(isActive: true, pageSize: 5)
+        );
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('Content', $result);
+
+        foreach ($result['Content'] ?? [] as $serie) {
+            $this->assertTrue($serie['IsActive'], 'IsActive filtresi çalışmıyor.');
+        }
+    }
+
+    public function test_create_and_get_series(): void
+    {
+        $uniqueName = strtoupper(substr(md5((string) microtime(true)), 0, 3));
+
+        $created = $this->client->eWaybill()->createSeries(
+            new CreateSeriesRequest(name: $uniqueName, isActive: true, isDefault: false)
+        );
+
+        $this->assertArrayHasKey('ID', $created);
+        $this->assertSame($uniqueName, $created['Name']);
+        $this->assertTrue($created['IsActive']);
+        $this->assertFalse($created['IsDefault']);
+
+        $detail = $this->client->eWaybill()->getSeries($created['ID']);
+
+        $this->assertSame($created['ID'], $detail['ID']);
+        $this->assertSame($uniqueName, $detail['Name']);
+        $this->assertArrayHasKey('Details', $detail);
+    }
+
+    public function test_update_series_active_status(): void
+    {
+        $seriesList = $this->client->eWaybill()->listSeries();
+        $series     = $seriesList['Content'] ?? [];
+
+        if (empty($series)) {
+            $this->markTestSkipped('Test hesabında e-İrsaliye serisi bulunamadı.');
+        }
+
+        $target         = $series[0];
+        $newActiveState = !$target['IsActive'];
+
+        $result = $this->client->eWaybill()->updateSeries(
+            new UpdateSeriesRequest(
+                id:        $target['ID'],
+                isDefault: $target['IsDefault'],
+                isActive:  $newActiveState,
+            )
+        );
+
+        $this->assertTrue($result);
+
+        $detail = $this->client->eWaybill()->getSeries($target['ID']);
+        $this->assertSame($newActiveState, $detail['IsActive']);
+
+        // Orijinal duruma geri al
+        $this->client->eWaybill()->updateSeries(
+            new UpdateSeriesRequest(
+                id:        $target['ID'],
+                isDefault: $target['IsDefault'],
+                isActive:  $target['IsActive'],
+            )
+        );
+    }
+
+    public function test_get_series_detail_has_expected_keys(): void
+    {
+        $seriesList = $this->client->eWaybill()->listSeries();
+
+        if (empty($seriesList['Content'])) {
+            $this->markTestSkipped('Test hesabında e-İrsaliye serisi bulunamadı.');
+        }
+
+        $id     = $seriesList['Content'][0]['ID'];
+        $detail = $this->client->eWaybill()->getSeries($id);
+
+        $this->assertArrayHasKey('ID', $detail);
+        $this->assertArrayHasKey('Name', $detail);
+        $this->assertArrayHasKey('IsActive', $detail);
+        $this->assertArrayHasKey('IsDefault', $detail);
+        $this->assertArrayHasKey('Details', $detail);
     }
 
     public function test_list_tags_returns_array(): void
@@ -87,6 +180,77 @@ class EWaybillServiceTest extends IntegrationTestCase
         } catch (\Nilvera\Exception\NotFoundException) {
             $this->markTestSkipped('getLastStatistics ucu bu test hesabında mevcut değil (404).');
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Önizleme
+    // -------------------------------------------------------------------------
+
+    public function test_preview_send_returns_html_string(): void
+    {
+        $series = $this->client->eWaybill()->listSeries();
+
+        if (empty($series['Content'])) {
+            $this->markTestSkipped('Test hesabında aktif e-irsaliye serisi bulunamadı.');
+        }
+
+        $seriesName = $series['Content'][0]['Name'];
+
+        $request = new SendWaybillRequest(
+            customerAlias:        'urn:mail:defaultpk@nilvera.com',
+            customerInfo:         new ReceiverRequest(
+                taxNumber:  '6310540565',
+                name:       'Nilvera e-İrsaliye Test Alıcısı',
+                address:    'Test Mah. No:1',
+                district:   'Kadıköy',
+                city:       'İstanbul',
+                country:    'Türkiye',
+                taxOffice:  'Kadıköy',
+                postalCode: '34710',
+            ),
+            despatchLines:        [
+                new DespatchLineRequest(
+                    name:              'SDK Test Ürünü',
+                    deliveredUnitType: UnitType::Piece,
+                    deliveredQuantity: 1.0,
+                    deliveredUnitName: 'Adet',
+                    quantityPrice:     100.0,
+                    lineTotal:         100.0,
+                ),
+            ],
+            issueDate:             new \DateTimeImmutable(),
+            despatchSerieOrNumber: $seriesName,
+            despatchType:          DespatchType::Sevk,
+            despatchProfile:       DespatchProfile::TemelIrsaliye,
+            actualDespatchDateTime: new \DateTimeImmutable(),
+            shipmentDetail:        new ShipmentDetailRequest(
+                shipmentInfo: new ShipmentInfoRequest(
+                    licensePlateId: '34 SDK 001',
+                    driverPersons:  [
+                        new DriverPersonRequest(
+                            firstName: 'Test',
+                            lastName:  'Sürücü',
+                            taxNumber: '11111111111',
+                        ),
+                    ],
+                ),
+                delivery: new WaybillDeliveryRequest(
+                    addressInfo: new AddressInfoRequest(
+                        address:    'Test Mah. No:1',
+                        district:   'Kadıköy',
+                        city:       'İstanbul',
+                        country:    'Türkiye',
+                        postalCode: '34710',
+                    ),
+                ),
+            ),
+        );
+
+        $html = $this->client->eWaybill()->previewSend($request);
+
+        $this->assertIsString($html);
+        $this->assertNotEmpty($html);
+        $this->assertStringContainsStringIgnoringCase('html', $html);
     }
 
     // -------------------------------------------------------------------------

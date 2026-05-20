@@ -177,27 +177,35 @@ class InvoiceBuilder
         return $clone;
     }
 
-    /** @throws \LogicException Hic kalem eklenmemisse */
+    /** @throws \LogicException Hic kalem eklenmemisse veya zorunlu alanlar eksikse */
     public function build(): SendInvoiceRequest
     {
         if ($this->lines === []) {
             throw new \LogicException('Fatura olusturmak icin en az bir kalem (addLine) gereklidir.');
         }
 
+        if ($this->alias === null) {
+            throw new \LogicException('customerAlias zorunludur; ->alias() cagrisini yapin.');
+        }
+
+        if ($this->serieOrNumber === null) {
+            throw new \LogicException('invoiceSerieOrNumber zorunludur; ->serieOrNumber() cagrisini yapin.');
+        }
+
         return new SendInvoiceRequest(
-            customerInfo: $this->receiver,
-            invoiceLines: $this->lines,
-            issueDate: $this->issueDate,
-            invoiceProfile: $this->profile,
-            invoiceType: $this->type,
-            currencyCode: $this->currency,
-            customerAlias: $this->alias,
-            exchangeRate: $this->exchangeRate,
-            notes: $this->notes,
+            customerInfo:         $this->receiver,
+            invoiceLines:         $this->lines,
+            issueDate:            $this->issueDate,
+            customerAlias:        $this->alias,
             invoiceSerieOrNumber: $this->serieOrNumber,
-            uuid: $this->uuid,
-            templateUuid: $this->templateUuid,
-            orderReference: $this->orderReference,
+            invoiceProfile:       $this->profile,
+            invoiceType:          $this->type,
+            currencyCode:         $this->currency,
+            exchangeRate:         $this->exchangeRate,
+            notes:                $this->notes,
+            uuid:                 $this->uuid,
+            templateUuid:         $this->templateUuid,
+            orderReference:       $this->orderReference,
         );
     }
 }

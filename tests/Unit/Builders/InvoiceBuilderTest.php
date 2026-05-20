@@ -31,7 +31,9 @@ class InvoiceBuilderTest extends TestCase
     private function builderWithOneLine(): InvoiceBuilder
     {
         return InvoiceBuilder::for($this->receiver)
-            ->addLine('Urun', 1, UnitType::Piece, 1000, 20);
+            ->addLine('Urun', 1, UnitType::Piece, 1000, 20)
+            ->alias('urn:mail:test@sirket.com.tr')
+            ->serieOrNumber('EFT');
     }
 
     // -------------------------------------------------------------------------
@@ -190,6 +192,8 @@ class InvoiceBuilderTest extends TestCase
         $line    = InvoiceLineRequest::make('Ozel Urun', 1, UnitType::Piece, 5000, 20);
         $request = InvoiceBuilder::for($this->receiver)
             ->addLineRequest($line)
+            ->alias('urn:mail:test@sirket.com.tr')
+            ->serieOrNumber('EFT')
             ->build();
 
         $this->assertCount(1, $request->invoiceLines);
@@ -202,6 +206,8 @@ class InvoiceBuilderTest extends TestCase
             ->addLine('Urun A', 1, UnitType::Piece, 100, 20)
             ->addLine('Urun B', 2, UnitType::Piece, 200, 10)
             ->addLine('Urun C', 3, UnitType::Piece, 300, 0)
+            ->alias('urn:mail:test@sirket.com.tr')
+            ->serieOrNumber('EFT')
             ->build();
 
         $this->assertCount(3, $request->invoiceLines);

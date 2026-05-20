@@ -51,9 +51,10 @@ class HttpClient
         return $this->request('PATCH', $path, ['json' => $data]);
     }
 
-    public function delete(string $path): Response
+    /** @param array<string, mixed> $data */
+    public function delete(string $path, array $data = []): Response
     {
-        return $this->request('DELETE', $path);
+        return $this->request('DELETE', $path, $data !== [] ? ['json' => $data] : []);
     }
 
     /** @param array<string, mixed> $options */
@@ -66,6 +67,9 @@ class HttpClient
         $delayMs     = $this->config->getRetryDelayMs();
         $attempt     = 0;
         $lastException = null;
+
+        // Payload present for POST/PUT/PATCH; null for GET/DELETE.
+        $payload = $options['json'] ?? null;
 
         while ($attempt < $maxAttempts) {
             if ($attempt > 0) {
@@ -82,46 +86,61 @@ class HttpClient
             $attempt++;
 
             $this->logger->debug('Nilvera API request', [
-                'method' => $method,
-                'url'    => $url,
+                'method'  => $method,
+                'url'     => $url,
+                'payload' => $payload,
             ]);
+
+            $startTime = hrtime(true);
 
             try {
                 $psrResponse = $this->guzzle->request($method, $url, $options);
                 $statusCode  = $psrResponse->getStatusCode();
                 $body        = (string) $psrResponse->getBody();
-
-                $this->logger->debug('Nilvera API response', [
-                    'status' => $statusCode,
-                    'url'    => $url,
-                ]);
+                $durationMs  = (int) round((hrtime(true) - $startTime) / 1_000_000);
 
                 // Guzzle http_errors=>false modunda exception fırlatmaz;
                 // durum kodunu burada kontrol ederek doğru exception'ı fırlatıyoruz.
                 if ($statusCode >= 500) {
-                    $lastException = ApiException::fromResponse($statusCode, $body);
+                    $lastException = ApiException::fromResponse($statusCode, $body)
+                        ->withRequestContext($method, $url, $payload);
+
                     $this->logger->warning('Nilvera API server error', [
-                        'status'  => $statusCode,
-                        'url'     => $url,
-                        'attempt' => $attempt,
+                        'status'      => $statusCode,
+                        'url'         => $url,
+                        'attempt'     => $attempt,
+                        'duration_ms' => $durationMs,
                     ]);
                     continue;
                 }
 
                 if ($statusCode >= 400) {
                     $this->logger->error('Nilvera API client error', [
-                        'status' => $statusCode,
-                        'url'    => $url,
-                        'body'   => $body,
+                        'status'      => $statusCode,
+                        'url'         => $url,
+                        'body'        => $body,
+                        'duration_ms' => $durationMs,
                     ]);
                     throw match ($statusCode) {
-                        401, 403 => AuthenticationException::fromResponse($statusCode, $body),
-                        404      => NotFoundException::fromResponse($statusCode, $body),
-                        409      => ConflictException::fromResponse($statusCode, $body),
-                        422      => ValidationException::fromResponse($statusCode, $body),
-                        default  => ApiException::fromResponse($statusCode, $body),
+                        401, 403 => AuthenticationException::fromResponse($statusCode, $body)
+                                        ->withRequestContext($method, $url, $payload),
+                        404      => NotFoundException::fromResponse($statusCode, $body)
+                                        ->withRequestContext($method, $url, $payload),
+                        409      => ConflictException::fromResponse($statusCode, $body)
+                                        ->withRequestContext($method, $url, $payload),
+                        422      => ValidationException::fromResponse($statusCode, $body)
+                                        ->withRequestContext($method, $url, $payload),
+                        default  => ApiException::fromResponse($statusCode, $body)
+                                        ->withRequestContext($method, $url, $payload),
                     };
                 }
+
+                $this->logger->debug('Nilvera API response', [
+                    'status'      => $statusCode,
+                    'url'         => $url,
+                    'duration_ms' => $durationMs,
+                    'body'        => $body,
+                ]);
 
                 return new Response($statusCode, $body, $psrResponse->getHeaders());
 
@@ -129,36 +148,47 @@ class HttpClient
                 // http_errors=>true modunda Guzzle'ın fırlattığı 4xx exception'ları
                 $statusCode = $e->getResponse()->getStatusCode();
                 $body       = (string) $e->getResponse()->getBody();
+                $durationMs = (int) round((hrtime(true) - $startTime) / 1_000_000);
 
                 $this->logger->error('Nilvera API client error', [
-                    'status' => $statusCode,
-                    'url'    => $url,
-                    'body'   => $body,
+                    'status'      => $statusCode,
+                    'url'         => $url,
+                    'body'        => $body,
+                    'duration_ms' => $durationMs,
                 ]);
 
                 throw match ($statusCode) {
-                    401, 403 => AuthenticationException::fromResponse($statusCode, $body),
-                    404      => NotFoundException::fromResponse($statusCode, $body),
-                    409      => ConflictException::fromResponse($statusCode, $body),
-                    422      => ValidationException::fromResponse($statusCode, $body),
-                    default  => ApiException::fromResponse($statusCode, $body),
+                    401, 403 => AuthenticationException::fromResponse($statusCode, $body)
+                                    ->withRequestContext($method, $url, $payload),
+                    404      => NotFoundException::fromResponse($statusCode, $body)
+                                    ->withRequestContext($method, $url, $payload),
+                    409      => ConflictException::fromResponse($statusCode, $body)
+                                    ->withRequestContext($method, $url, $payload),
+                    422      => ValidationException::fromResponse($statusCode, $body)
+                                    ->withRequestContext($method, $url, $payload),
+                    default  => ApiException::fromResponse($statusCode, $body)
+                                    ->withRequestContext($method, $url, $payload),
                 };
 
             } catch (ServerException $e) {
                 // http_errors=>true modunda Guzzle'ın fırlattığı 5xx exception'ları
                 $statusCode    = $e->getResponse()->getStatusCode();
                 $body          = (string) $e->getResponse()->getBody();
-                $lastException = ApiException::fromResponse($statusCode, $body);
+                $durationMs    = (int) round((hrtime(true) - $startTime) / 1_000_000);
+                $lastException = ApiException::fromResponse($statusCode, $body)
+                    ->withRequestContext($method, $url, $payload);
 
                 $this->logger->warning('Nilvera API server error', [
-                    'status'  => $statusCode,
-                    'url'     => $url,
-                    'attempt' => $attempt,
+                    'status'      => $statusCode,
+                    'url'         => $url,
+                    'attempt'     => $attempt,
+                    'duration_ms' => $durationMs,
                 ]);
 
             } catch (ConnectException $e) {
                 // Baglanti hatasi — yeniden denenebilir
                 $lastException = new ApiException('Connection failed: ' . $e->getMessage(), 0, null, $e);
+                $lastException->withRequestContext($method, $url, $payload);
 
                 $this->logger->warning('Nilvera API connection error', [
                     'url'     => $url,
@@ -168,7 +198,7 @@ class HttpClient
             }
         }
 
-        throw $lastException ?? new ApiException('Request failed after retries.');
+        throw $lastException ?? new ApiException('Request failed after retries.', 0);
     }
 
     /** @return array<string, mixed> */

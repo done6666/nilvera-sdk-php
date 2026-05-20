@@ -36,9 +36,11 @@ try {
 // Boş fatura kalemi dizisi
 try {
     new SendInvoiceRequest(
-        customerInfo: new ReceiverRequest('3230456015', 'Test A.Ş.', 'Adres', 'İlçe', 'Şehir'),
-        invoiceLines: [],    // boş olamaz
-        issueDate:    new DateTimeImmutable(),
+        customerInfo:         new ReceiverRequest('3230456015', 'Test A.Ş.', 'Adres', 'İlçe', 'Şehir'),
+        invoiceLines:         [],    // boş olamaz
+        issueDate:            new DateTimeImmutable(),
+        customerAlias:        'urn:mail:test@sirket.com.tr',
+        invoiceSerieOrNumber: 'EFT',
     );
 } catch (\InvalidArgumentException $e) {
     echo 'Beklenen hata — boş kalemler: ' . $e->getMessage() . PHP_EOL;
@@ -59,9 +61,11 @@ echo PHP_EOL . '=== API Hata Yakalama ===' . PHP_EOL;
 $client = NilveraClient::test('GECERSIZ-API-KEY');
 
 $request = new SendInvoiceRequest(
-    customerInfo: new ReceiverRequest('3230456015', 'Test A.Ş.', 'Adres', 'İlçe', 'Şehir', taxOffice: 'Merkez'),
-    invoiceLines: [InvoiceLineRequest::make('Ürün', 1, UnitType::Piece, 100.0, 20)],
-    issueDate:    new DateTimeImmutable(),
+    customerInfo:         new ReceiverRequest('3230456015', 'Test A.Ş.', 'Adres', 'İlçe', 'Şehir', taxOffice: 'Merkez'),
+    invoiceLines:         [InvoiceLineRequest::make('Ürün', 1, UnitType::Piece, 100.0, 20)],
+    issueDate:            new DateTimeImmutable(),
+    customerAlias:        'urn:mail:test@sirket.com.tr',
+    invoiceSerieOrNumber: 'EFT',
 );
 
 try {

@@ -52,9 +52,11 @@ class SendInvoiceRequestTest extends TestCase
     private function makeRequest(array $overrides = []): SendInvoiceRequest
     {
         return new SendInvoiceRequest(...array_merge([
-            'customerInfo' => $this->receiver,
-            'invoiceLines' => [$this->line],
-            'issueDate'    => new \DateTimeImmutable('2026-05-14T10:00:00'),
+            'customerInfo'        => $this->receiver,
+            'invoiceLines'        => [$this->line],
+            'issueDate'           => new \DateTimeImmutable('2026-05-14T10:00:00'),
+            'customerAlias'       => 'urn:mail:test@sirket.com.tr',
+            'invoiceSerieOrNumber' => 'EFT',
         ], $overrides));
     }
 
@@ -80,11 +82,12 @@ class SendInvoiceRequestTest extends TestCase
         $this->assertArrayNotHasKey('ArchiveInvoice', $data);
     }
 
-    public function test_to_array_omits_customer_alias_when_null(): void
+    public function test_to_array_always_includes_customer_alias(): void
     {
         $data = $this->makeRequest()->toArray();
 
-        $this->assertArrayNotHasKey('CustomerAlias', $data);
+        $this->assertArrayHasKey('CustomerAlias', $data);
+        $this->assertSame('urn:mail:test@sirket.com.tr', $data['CustomerAlias']);
     }
 
     public function test_to_array_includes_customer_alias_when_set(): void
@@ -815,6 +818,20 @@ class SendInvoiceRequestTest extends TestCase
     // Validation errors
     // -------------------------------------------------------------------------
 
+    public function test_throws_when_customer_alias_is_empty(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/CustomerAlias/');
+        $this->makeRequest(['customerAlias' => '']);
+    }
+
+    public function test_throws_when_invoice_serie_or_number_is_empty(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/InvoiceSerieOrNumber/');
+        $this->makeRequest(['invoiceSerieOrNumber' => '']);
+    }
+
     public function test_throws_when_invoice_lines_empty(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -986,12 +1003,14 @@ class SendInvoiceRequestTest extends TestCase
     public function test_sgk_invoice_payload(): void
     {
         $request = new SendInvoiceRequest(
-            customerInfo:   $this->receiver,
-            invoiceLines:   [$this->line],
-            issueDate:      new \DateTimeImmutable('2026-05-14T10:00:00'),
-            invoiceType:    InvoiceType::SGK,
-            accountingCost: 'SAGLIK_MED',
-            invoicePeriod:  new InvoicePeriodRequest(
+            customerInfo:         $this->receiver,
+            invoiceLines:         [$this->line],
+            issueDate:            new \DateTimeImmutable('2026-05-14T10:00:00'),
+            customerAlias:        'urn:mail:test@sirket.com.tr',
+            invoiceSerieOrNumber: 'EFT',
+            invoiceType:          InvoiceType::SGK,
+            accountingCost:       'SAGLIK_MED',
+            invoicePeriod:        new InvoicePeriodRequest(
                 startDate: new \DateTimeImmutable('2026-04-01'),
                 endDate:   new \DateTimeImmutable('2026-04-30'),
             ),
@@ -1029,6 +1048,8 @@ class SendInvoiceRequestTest extends TestCase
             customerInfo:                    $this->receiver,
             invoiceLines:                    [$this->line],
             issueDate:                       new \DateTimeImmutable('2026-05-14T10:00:00'),
+            customerAlias:                   'urn:mail:test@sirket.com.tr',
+            invoiceSerieOrNumber:            'EFT',
             invoiceProfile:                  InvoiceProfile::Export,
             invoiceType:                     InvoiceType::ExciseDuty,
             taxExemptionReasonInfo:          new TaxExemptionReasonInfoRequest(kdvExemptionReasonCode: '301'),

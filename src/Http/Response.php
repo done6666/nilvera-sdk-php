@@ -39,6 +39,13 @@ class Response
 
     public function getHeader(string $name): ?string
     {
-        return $this->headers[strtolower($name)][0] ?? null;
+        $lower = strtolower($name);
+        foreach ($this->headers as $key => $values) {
+            if (strtolower($key) === $lower) {
+                return $values[0] ?? null;
+            }
+        }
+
+        return null;
     }
 }

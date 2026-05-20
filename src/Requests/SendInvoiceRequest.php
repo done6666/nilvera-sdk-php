@@ -58,17 +58,17 @@ readonly class SendInvoiceRequest extends AbstractRequest
         public ReceiverRequest $customerInfo,
         public array $invoiceLines,
         public \DateTimeImmutable $issueDate,
+        /** GIB sisteminde kayıtlı alıcı için e-posta veya ETTN alias */
+        public string $customerAlias,
+        /** 16 haneli fatura numarası veya 3 haneli seri kodu */
+        public string $invoiceSerieOrNumber,
         public InvoiceProfile $invoiceProfile = InvoiceProfile::Basic,
         public InvoiceType $invoiceType = InvoiceType::Sales,
         /** ISO 4217 para birimi kodu */
         public string $currencyCode = 'TRY',
-        /** GIB sisteminde kayıtlı alıcı için e-posta veya ETTN alias */
-        public ?string $customerAlias = null,
         /** TRY dışındaki para birimlerinde döviz kuru */
         public ?float $exchangeRate = null,
         public array $notes = [],
-        /** 16 haneli fatura numarası veya 3 haneli seri kodu */
-        public ?string $invoiceSerieOrNumber = null,
         public ?string $uuid = null,
         public ?string $templateUuid = null,
         public ?string $templateBase64String = null,
@@ -111,6 +111,14 @@ readonly class SendInvoiceRequest extends AbstractRequest
         /** İhracat faturalarında yabancı alıcı bilgisi (CustomerInfo yerine kullanın) */
         public ?ExportCustomerInfoRequest $exportCustomerInfo = null,
     ) {
+        if (trim($this->customerAlias) === '') {
+            throw new \InvalidArgumentException('CustomerAlias boş olamaz.');
+        }
+
+        if (trim($this->invoiceSerieOrNumber) === '') {
+            throw new \InvalidArgumentException('InvoiceSerieOrNumber boş olamaz.');
+        }
+
         if ($this->invoiceLines === []) {
             throw new \InvalidArgumentException('Faturada en az bir kalem (InvoiceLines) bulunmalıdır.');
         }
@@ -262,11 +270,10 @@ readonly class SendInvoiceRequest extends AbstractRequest
             $eInvoice['Notes'] = $this->notes;
         }
 
-        $payload = ['EInvoice' => $eInvoice];
-
-        if ($this->customerAlias !== null) {
-            $payload['CustomerAlias'] = $this->customerAlias;
-        }
+        $payload = [
+            'EInvoice'      => $eInvoice,
+            'CustomerAlias' => $this->customerAlias,
+        ];
 
         return $payload;
     }

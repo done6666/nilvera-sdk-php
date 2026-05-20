@@ -14,14 +14,15 @@ use Nilvera\Requests\SendArchiveInvoiceRequest;
 use Nilvera\Requests\ValueObjects\InvoiceLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
-$client = NilveraClient::test('TEST-API-KEY-BURAYA');
+$apiKey = $_SERVER['NILVERA_API_KEY'] ?? $_ENV['NILVERA_API_KEY'] ?? 'GECERSIZ-API-KEY';
+$client = NilveraClient::test($apiKey);
 
 // -------------------------------------------------------------------
 // 1. Alıcı bilgileri
 //    e-Arşiv'de taxOffice zorunlu değildir (bireysel müşteri olabilir)
 // -------------------------------------------------------------------
 $customerInfo = new ReceiverRequest(
-    taxNumber: '12345678901',   // 11 haneli TCKN (bireysel)
+    taxNumber: '10000000146',   // 11 haneli geçerli TCKN (e-fatura mükellefi değil)
     name:      'Ahmet Yılmaz',
     address:   'Bağcılar Cad. No:5 Daire:3',
     district:  'Bağcılar',
@@ -53,17 +54,25 @@ $lines = [
 //    InvoiceProfile otomatik olarak EARSIVFATURA atanır
 // -------------------------------------------------------------------
 $request = new SendArchiveInvoiceRequest(
-    customerInfo: $customerInfo,
-    invoiceLines: $lines,
-    issueDate:    new DateTimeImmutable('2026-05-14T09:00:00'),
-    invoiceType:  InvoiceType::Sales,
-    currencyCode: 'TRY',
-    notes:        ['Lütfen ödemeyi banka havalesi ile yapınız.'],
+    customerInfo:          $customerInfo,
+    invoiceLines:          $lines,
+    issueDate:             new DateTimeImmutable('2026-05-19T09:00:00'),
+    invoiceSerieOrNumber:  'ABC',
+    invoiceType:           InvoiceType::Sales,
+    currencyCode:          'TRY',
+    notes:                 ['Lütfen ödemeyi banka havalesi ile yapınız.'],
 );
 
 try {
     // -------------------------------------------------------------------
-    // 4. Gönder
+    // 4. Önizle (opsiyonel — göndermeden HTML olarak kontrol et)
+    // -------------------------------------------------------------------
+    $preview = $client->eArchive()->previewSend($request);
+    file_put_contents('/tmp/earsiv_preview.html', $preview);
+    echo 'Önizleme kaydedildi: /tmp/earsiv_preview.html' . PHP_EOL;
+
+    // -------------------------------------------------------------------
+    // 5. Gönder
     // -------------------------------------------------------------------
     $response = $client->eArchive()->send($request);
 
@@ -103,10 +112,8 @@ try {
     echo 'Toplam e-Arşiv fatura: ' . ($invoices['TotalCount'] ?? '?') . PHP_EOL;
 
 } catch (ValidationException $e) {
-    echo 'Doğrulama hatası:' . PHP_EOL;
-    foreach ($e->getErrors() as $field => $messages) {
-        echo "  [{$field}] " . implode(', ', (array) $messages) . PHP_EOL;
-    }
+    echo $e->getSummary() . PHP_EOL . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 } catch (ApiException $e) {
-    echo 'API hatası (' . $e->getStatusCode() . '): ' . $e->getMessage() . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 }

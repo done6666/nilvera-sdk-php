@@ -35,8 +35,9 @@ abstract class AbstractService
         return $this->client->patch($path, $data);
     }
 
-    protected function delete(string $path): Response
+    /** @param array<string, mixed> $data */
+    protected function delete(string $path, array $data = []): Response
     {
-        return $this->client->delete($path);
+        return $this->client->delete($path, $data);
     }
 }

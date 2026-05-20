@@ -245,8 +245,9 @@ $client->eInvoice()->upload([...]);
 ### Önizleme ve PDF İndirme
 
 ```php
-// HTML önizleme (kaydetmeden)
-$preview = $client->eInvoice()->preview($request);
+// HTML önizleme — göndermeden faturanın nasıl görüneceğini kontrol et
+$html = $client->eInvoice()->preview($request);  // string döner
+file_put_contents('fatura_preview.html', $html);
 
 // PDF binary olarak indir (kaydetmeden)
 $pdfBinary = $client->eInvoice()->downloadPdf($request);
@@ -321,6 +322,10 @@ $request = new SendArchiveInvoiceRequest(
     issueDate: new DateTimeImmutable('2024-06-01T09:00:00'),
 );
 
+// Göndermeden önce HTML önizleme
+$preview = $client->eArchive()->previewSend($request);
+
+// Gönder
 $response = $client->eArchive()->send($request);
 
 // İptal
@@ -349,8 +354,8 @@ use Nilvera\Requests\ValueObjects\DespatchLineRequest;
 use Nilvera\Requests\ValueObjects\ReceiverRequest;
 
 $request = new SendWaybillRequest(
-    customerAlias: 'urn:mail:defaultpk@nilvera.com', // GIB'de kayıtlı alıcı alias'ı
-    customerInfo:  new ReceiverRequest(
+    customerAlias:        'urn:mail:defaultpk@nilvera.com', // GIB'de kayıtlı alıcı alias'ı
+    customerInfo:         new ReceiverRequest(
         taxNumber: '1234567890',
         name:      'Alıcı Firma A.Ş.',
         address:   'Sanayi Cad. No:10',
@@ -358,7 +363,7 @@ $request = new SendWaybillRequest(
         city:      'Kocaeli',
         taxOffice: 'Gebze',
     ),
-    despatchLines: [
+    despatchLines:        [
         new DespatchLineRequest(
             name:              'Ürün A',
             deliveredUnitType: UnitType::Piece,
@@ -368,15 +373,20 @@ $request = new SendWaybillRequest(
             lineTotal:         5000.00,
         ),
     ],
-    issueDate:      new DateTimeImmutable('2024-06-01T08:00:00'),
-    despatchType:   DespatchType::Sevk,
-    despatchProfile: DespatchProfile::TemelIrsaliye,
+    issueDate:             new DateTimeImmutable('2024-06-01T08:00:00'),
+    despatchSerieOrNumber: 'IRS',   // zorunlu: 3 haneli seri kodu veya 16 haneli numara
+    despatchType:          DespatchType::Sevk,
+    despatchProfile:       DespatchProfile::TemelIrsaliye,
 );
 
+// Göndermeden önce HTML önizleme
+$preview = $client->eWaybill()->previewSend($request);
+
+// Gönder
 $response = $client->eWaybill()->send($request);
 echo $response->uuid;
 
-// Listeleme
+// Giden irsaliyeler
 $waybills = $client->eWaybill()->listSaleWaybills($params);
 $html     = $client->eWaybill()->getSaleWaybillHtml($uuid);
 $pdf      = $client->eWaybill()->getSaleWaybillPdf($uuid);

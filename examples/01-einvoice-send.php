@@ -18,7 +18,8 @@ use Nilvera\Requests\ValueObjects\TaxRequest;
 // -------------------------------------------------------------------
 // 1. İstemciyi başlat
 // -------------------------------------------------------------------
-$client = NilveraClient::test('TEST-API-KEY-BURAYA');
+$apiKey = $_SERVER['NILVERA_API_KEY'] ?? $_ENV['NILVERA_API_KEY'] ?? 'GECERSIZ-API-KEY';
+$client = NilveraClient::test($apiKey);
 
 // -------------------------------------------------------------------
 // 2. DTO'ları doldur
@@ -26,12 +27,12 @@ $client = NilveraClient::test('TEST-API-KEY-BURAYA');
 
 // Alıcı bilgileri
 $customerInfo = new ReceiverRequest(
-    taxNumber: '3230456015',        // 10 haneli VKN veya 11 haneli TCKN
-    name:      'ABC Yazılım A.Ş.',
-    address:   'Atatürk Cad. No:1',
-    district:  'Kadıköy',
-    city:      'İstanbul',
-    taxOffice: 'Kadıköy',           // e-Fatura'da zorunlu
+    taxNumber: '6310540565',                    // 10 haneli VKN veya 11 haneli TCKN
+    name:      'Nilvera E-Fatura Test Alicisi',
+    address:   'Test Mah. No:1',
+    district:  'Kadikoy',
+    city:      'Istanbul',
+    taxOffice: 'Kadikoy',                       // e-Fatura'da zorunlu
 );
 
 // Fatura kalemleri — InvoiceLineRequest::make() KDV tutarını otomatik hesaplar
@@ -54,42 +55,30 @@ $lines = [
         kdvPercent:       10,
         allowancePercent: 10,       // %10 iskonto → AllowanceTotal otomatik hesaplanır
     ),
-
-    // KDV tevkifatlı kalem
-    InvoiceLineRequest::make(
-        name:       'Yapım İşi',
-        quantity:   1,
-        unitType:   UnitType::Piece,
-        price:      1000.00,
-        kdvPercent: 20,
-        taxes: [
-            new TaxRequest(
-                taxCode:    '9015',   // KDV tevkifatı
-                total:      80.00,
-                percent:    40.0,
-                reasonCode: '601',
-                reasonDesc: 'Yapım İşleri ile Bu İşlerle Birlikte İfa Edilen Mühendislik-Mimarlık ve Etüt-Proje Hizmetleri',
-            ),
-        ],
-    ),
 ];
 
 // Fatura isteği
 $request = new SendInvoiceRequest(
-    customerInfo:    $customerInfo,
-    invoiceLines:    $lines,
-    issueDate:       new DateTimeImmutable('2026-05-14T10:00:00'),
-    invoiceProfile:  InvoiceProfile::Basic,
-    invoiceType:     InvoiceType::Sales,
-    currencyCode:    'TRY',
-    // customerAlias: 'urn:mail:muhasebe@abc.com.tr', // GIB'e kayıtlı alıcı için
-    notes: ['Ödeme vadesi 30 gündür.'],
+    customerInfo:         $customerInfo,
+    invoiceLines:         $lines,
+    issueDate:            new DateTimeImmutable(),
+    customerAlias:        'urn:mail:defaultpk@nilvera.com', // GIB'e kayıtlı alıcı alias'ı
+    invoiceSerieOrNumber: 'ABB',                           // 3 haneli seri kodu veya 16 haneli fatura numarası
+    invoiceProfile:       InvoiceProfile::Basic,
+    invoiceType:          InvoiceType::Sales,
+    currencyCode:         'TRY',
+    notes:                ['Ödeme vadesi 30 gündür.'],
 );
 
 // -------------------------------------------------------------------
 // 3. Gönder ve yanıtı işle
 // -------------------------------------------------------------------
 try {
+    // Göndermeden önce HTML önizleme (opsiyonel)
+    $preview = $client->eInvoice()->preview($request);
+    file_put_contents('/tmp/einvoice_preview.html', $preview);
+    echo 'Önizleme kaydedildi: /tmp/einvoice_preview.html' . PHP_EOL;
+
     $response = $client->eInvoice()->send($request);
 
     echo 'Fatura gönderildi.' . PHP_EOL;
@@ -97,11 +86,8 @@ try {
     echo 'Fatura No     : ' . ($response->invoiceNumber ?? '—') . PHP_EOL;
 
 } catch (ValidationException $e) {
-    // HTTP 422 — iş kuralı veya alan doğrulama hatası
-    echo 'Doğrulama hatası:' . PHP_EOL;
-    foreach ($e->getErrors() as $field => $messages) {
-        echo "  [{$field}] " . implode(', ', (array) $messages) . PHP_EOL;
-    }
+    echo $e->getSummary() . PHP_EOL . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 } catch (ApiException $e) {
-    echo 'API hatası (' . $e->getStatusCode() . '): ' . $e->getMessage() . PHP_EOL;
+    echo $e->toDebugString() . PHP_EOL;
 }
