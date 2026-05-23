@@ -343,6 +343,55 @@ class EInvoiceService extends AbstractService
     }
 
     /**
+     * POST /einvoice/Purchase/SendAnswer — accept a purchase invoice.
+     *
+     * Sends AnswerCode "approved" to GIB via the Nilvera API.
+     */
+    public function acceptInvoice(string $uuid): string
+    {
+        return $this->post('/einvoice/Purchase/SendAnswer', [
+            'UUID'       => $uuid,
+            'AnswerCode' => 'approved',
+        ])->getBody();
+    }
+
+    /**
+     * POST /einvoice/Purchase/SendAnswer — reject a purchase invoice.
+     *
+     * Sends AnswerCode "rejected" to GIB. RejectNote is strongly recommended
+     * for TICARIFATURA profile invoices; it may be required by GIB rules.
+     */
+    public function rejectInvoice(string $uuid, ?string $rejectNote = null): string
+    {
+        $data = [
+            'UUID'       => $uuid,
+            'AnswerCode' => 'rejected',
+        ];
+
+        if ($rejectNote !== null) {
+            $data['RejectNote'] = $rejectNote;
+        }
+
+        return $this->post('/einvoice/Purchase/SendAnswer', $data)->getBody();
+    }
+
+    /**
+     * GET /einvoice/Purchase/{uuid}/Status
+     *
+     * @return array{
+     *   InvoiceProfile: string,
+     *   IssueDate: string,
+     *   Answer: array{AnswerCode: string, AnswerNote: ?string, Description: ?string},
+     *   InvoiceStatus: array{Code: string, Description: ?string, DetailDescription: ?string},
+     *   EnvelopeInfo: array{UUID: ?string, GIBCode: int, GIBDescription: ?string, CreatedDate: string}
+     * }
+     */
+    public function getPurchaseInvoiceStatus(string $uuid): array
+    {
+        return $this->get("/einvoice/Purchase/{$uuid}/Status")->json();
+    }
+
+    /**
      * GET /einvoice/Gib/Purchase — sync incoming invoices from GIB.
      *
      * @return array<string, mixed>

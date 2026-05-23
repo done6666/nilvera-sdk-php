@@ -305,4 +305,101 @@ class EInvoiceServiceTest extends TestCase
 
         $this->assertFalse($result);
     }
+
+    // -------------------------------------------------------------------------
+    // acceptInvoice / rejectInvoice / getPurchaseInvoiceStatus
+    // -------------------------------------------------------------------------
+
+    public function test_accept_invoice_posts_approved_answer_code(): void
+    {
+        $uuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Purchase/SendAnswer', $this->callback(
+                fn ($opts) => ($opts['json']['UUID'] ?? null) === $uuid
+                    && ($opts['json']['AnswerCode'] ?? null) === 'approved'
+                    && !isset($opts['json']['RejectNote'])
+            ))
+            ->willReturn(new GuzzleResponse(200, [], '"Islem basarili"'));
+
+        $result = $this->service->acceptInvoice($uuid);
+
+        $this->assertSame('"Islem basarili"', $result);
+    }
+
+    public function test_reject_invoice_posts_rejected_answer_code_without_note(): void
+    {
+        $uuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Purchase/SendAnswer', $this->callback(
+                fn ($opts) => ($opts['json']['UUID'] ?? null) === $uuid
+                    && ($opts['json']['AnswerCode'] ?? null) === 'rejected'
+                    && !isset($opts['json']['RejectNote'])
+            ))
+            ->willReturn(new GuzzleResponse(200, [], '"Islem basarili"'));
+
+        $result = $this->service->rejectInvoice($uuid);
+
+        $this->assertSame('"Islem basarili"', $result);
+    }
+
+    public function test_reject_invoice_includes_reject_note_when_provided(): void
+    {
+        $uuid = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+        $note = 'Fatura tutarı hatalıdır';
+
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('POST', 'https://apitest.nilvera.com/einvoice/Purchase/SendAnswer', $this->callback(
+                fn ($opts) => ($opts['json']['UUID'] ?? null) === $uuid
+                    && ($opts['json']['AnswerCode'] ?? null) === 'rejected'
+                    && ($opts['json']['RejectNote'] ?? null) === $note
+            ))
+            ->willReturn(new GuzzleResponse(200, [], '"Islem basarili"'));
+
+        $result = $this->service->rejectInvoice($uuid, $note);
+
+        $this->assertSame('"Islem basarili"', $result);
+    }
+
+    public function test_get_purchase_invoice_status_uses_uuid_in_path(): void
+    {
+        $uuid = '550e8400-e29b-41d4-a716-446655440000';
+
+        $responseBody = json_encode([
+            'InvoiceProfile' => 'TICARIFATURA',
+            'IssueDate'      => '2026-05-01T00:00:00Z',
+            'Answer'         => [
+                'AnswerCode'  => 'waitingForApproval',
+                'AnswerNote'  => null,
+                'Description' => null,
+            ],
+            'InvoiceStatus'  => [
+                'Code'              => 'succeed',
+                'Description'       => 'Başarılı',
+                'DetailDescription' => null,
+            ],
+            'EnvelopeInfo'   => [
+                'UUID'           => 'env-uuid',
+                'GIBCode'        => 0,
+                'GIBDescription' => 'Başarılı',
+                'CreatedDate'    => '2026-05-01T10:00:00Z',
+            ],
+        ]);
+
+        $this->guzzle->expects($this->once())
+            ->method('request')
+            ->with('GET', "https://apitest.nilvera.com/einvoice/Purchase/{$uuid}/Status", $this->anything())
+            ->willReturn(new GuzzleResponse(200, [], $responseBody));
+
+        $result = $this->service->getPurchaseInvoiceStatus($uuid);
+
+        $this->assertSame('TICARIFATURA', $result['InvoiceProfile']);
+        $this->assertSame('waitingForApproval', $result['Answer']['AnswerCode']);
+        $this->assertSame('succeed', $result['InvoiceStatus']['Code']);
+        $this->assertSame(0, $result['EnvelopeInfo']['GIBCode']);
+    }
 }

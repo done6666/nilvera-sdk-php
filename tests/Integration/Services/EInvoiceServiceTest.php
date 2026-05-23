@@ -248,4 +248,84 @@ class EInvoiceServiceTest extends IntegrationTestCase
 
         $this->assertIsArray($result);
     }
+
+    // -------------------------------------------------------------------------
+    // getPurchaseInvoiceStatus
+    // -------------------------------------------------------------------------
+
+    public function test_get_purchase_invoice_status_returns_structured_response(): void
+    {
+        $list = $this->client->eInvoice()->listPurchaseInvoices(
+            new ListInvoicesRequest(page: 1, pageSize: 1)
+        );
+
+        if (empty($list['Content'])) {
+            $this->markTestSkipped('Test hesabında gelen fatura bulunamadı.');
+        }
+
+        $uuid   = $list['Content'][0]['UUID'];
+        $result = $this->client->eInvoice()->getPurchaseInvoiceStatus($uuid);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('InvoiceProfile', $result);
+        $this->assertArrayHasKey('Answer', $result);
+        $this->assertArrayHasKey('InvoiceStatus', $result);
+        $this->assertArrayHasKey('EnvelopeInfo', $result);
+        $this->assertArrayHasKey('AnswerCode', $result['Answer']);
+        $this->assertArrayHasKey('Code', $result['InvoiceStatus']);
+    }
+
+    // -------------------------------------------------------------------------
+    // acceptInvoice / rejectInvoice
+    //
+    // Bu testler gerçek GIB yanıtı gönderdiğinden yalnızca TICARIFATURA
+    // profilindeki ve "waitingForApproval" durumundaki faturalarda çalışır.
+    // Böyle bir fatura yoksa test atlanır.
+    // -------------------------------------------------------------------------
+
+    public function test_accept_invoice_for_waiting_purchase_invoice(): void
+    {
+        $list = $this->client->eInvoice()->listPurchaseInvoices(
+            new ListInvoicesRequest(page: 1, pageSize: 20)
+        );
+
+        $waitingUuid = null;
+        foreach ($list['Content'] ?? [] as $invoice) {
+            if (($invoice['AnswerCode'] ?? '') === 'waitingForApproval') {
+                $waitingUuid = $invoice['UUID'];
+                break;
+            }
+        }
+
+        if ($waitingUuid === null) {
+            $this->markTestSkipped('Onay bekleyen (waitingForApproval) gelen fatura bulunamadı.');
+        }
+
+        $result = $this->client->eInvoice()->acceptInvoice($waitingUuid);
+
+        $this->assertIsString($result);
+    }
+
+    public function test_reject_invoice_for_waiting_purchase_invoice(): void
+    {
+        $list = $this->client->eInvoice()->listPurchaseInvoices(
+            new ListInvoicesRequest(page: 1, pageSize: 20)
+        );
+
+        $waitingUuid = null;
+        foreach ($list['Content'] ?? [] as $invoice) {
+            if (($invoice['AnswerCode'] ?? '') === 'waitingForApproval') {
+                $waitingUuid = $invoice['UUID'];
+                break;
+            }
+        }
+
+        if ($waitingUuid === null) {
+            $this->markTestSkipped('Onay bekleyen (waitingForApproval) gelen fatura bulunamadı.');
+        }
+
+        $result = $this->client->eInvoice()->rejectInvoice($waitingUuid, 'SDK entegrasyon testi — red');
+
+        $this->assertIsString($result);
+    }
 }
